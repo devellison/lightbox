@@ -1,0 +1,7 @@
+- Set up hardware
+- Install CircuitPython to Adafruit Feather RP2040
+- Copy code.py and lightbar.py to Adafruit Feather RP2040's root directory
+- Compile app
+  - Windows: `script\build_win.bat`
+  - Linux: `mkdir -p build; cd build; cmake ..; make`
+- Run it!
