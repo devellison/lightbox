@@ -1,0 +1,11 @@
+# Clang format for lightbox
+---
+Language: Cpp
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 2
+BreakBeforeBraces: Allman
+IncludeBlocks: Preserve
+AllowShortFunctionsOnASingleLine: Empty
+AlignConsecutiveAssignments: true
+AlignConsecutiveMacros: true
