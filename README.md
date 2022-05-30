@@ -10,9 +10,11 @@ Lightbox is for a custom lightbox system with a camera
   https://learn.adafruit.com/adafruit-feather-rp2040-pico/circuitpython
 - Copy `code.py` and `lightbar.py` to Adafruit Feather RP2040's root directory
 - Configure and compile app (GUI mode, as esp. in Windows you may need to help it find OpenCV build directory)
-  - Configure: `cmake-gui -S . -B build`
-  - Compile:   `cmake --build build --config Release`
-  - Test:      `cmake --build build --config Release -t RUN_TESTS`
+  - Windows:
+    - Configure: `cmake-gui -S . -B build`
+    - Compile:   `cmake --build build --config Release`
+    - Test:      `cmake --build build --config Release -t RUN_TESTS`
+  - Linux: TBD
 - Run it!
   - Windows: build\Release\lightbox.exe
   - Linux: TBD

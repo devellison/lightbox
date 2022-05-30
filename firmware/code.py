@@ -1,4 +1,4 @@
-# Test for lightbox
+# \file Main code for Adafruit Feather RP2040 for Lightbox
 import supervisor
 import time
 import lightbar

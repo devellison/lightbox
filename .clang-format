@@ -9,3 +9,4 @@ IncludeBlocks: Preserve
 AllowShortFunctionsOnASingleLine: Empty
 AlignConsecutiveAssignments: true
 AlignConsecutiveMacros: true
+AllowAllConstructorInitializersOnNextLine: false

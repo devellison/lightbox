@@ -1,3 +1,6 @@
+/// \file camera_manager.hpp
+/// Camera manager for camera enumeration and creation.
+
 #ifndef LIGHTBOX_CAMERA_MANAGER_HPP_
 #define LIGHTBOX_CAMERA_MANAGER_HPP_
 
@@ -8,7 +11,11 @@
 namespace zebral
 {
 /// Enumerates and creates cameras
-/// Right now, this is a really simplistic class, and doesn't watch disconnects or usage
+///
+/// Right now, this is a really simplistic class, and doesn't watch disconnects or usage and just
+/// updates the known cameras when Enumerate is called.
+///
+/// {TODO} Long term, it should watch device connections and allow threaded access.
 class CameraManager
 {
  public:
@@ -21,9 +28,6 @@ class CameraManager
 
   /// Create a camera with an information structure from Enumerate
   std::shared_ptr<Camera> Create(const CameraInfo& info);
-
- protected:
-  std::vector<CameraInfo> cameras_;
 };
 
 }  // namespace zebral

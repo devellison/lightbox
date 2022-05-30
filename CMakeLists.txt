@@ -1,64 +1,84 @@
+# Lightbox project
+#
+# Custom hardware + software for an experimental computer vision lightbox.
+#
 cmake_minimum_required(VERSION 3.15)
-project(lightbox LANGUAGES CXX)
+
+project(
+  lightbox
+  VERSION 0.0.1
+  LANGUAGES CXX
+)
+
+# Package info
+set(CPACK_PACKAGE_VENDOR "zebral.net")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ZeBrAl Lightbox Project")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
+set(CPACK_SOURCE_IGNORE_FILES /.git /.*build.* /\\\\.DS_Store)
+include(CPack)
+
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+set(CMAKE_CXX_STANDARD 17)
+
+include(GNUInstallDirs)
+include(CMakePrintHelpers)
 include(GoogleTest)
 enable_testing()
 
-# Automate version later
-set(LIGHTBOX_VERSION "0.0.1")
+find_package(Threads REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
 
-# We'll want OpenCV, but probably don't care much about version
-# We DO, however, want specific packages that may need to be built externally for now.
-find_package(OpenCV REQUIRED opencv_core opencv_videoio opencv_highgui)
-
-# High warning level, treat warnings as errors, compile as a console with main().
-if (MSVC)
-    add_compile_options(/W4 /WX)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup")
+# High warning level, treat warnings as errors, compile as a console with
+# main().
+if(MSVC)
+  add_compile_options(/W4 /WX)
+  set(CMAKE_EXE_LINKER_FLAGS
+      "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup"
+  )
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+  add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-# Global defs
-add_definitions(-DLIGHTBOX_VERSION="${LIGHTBOX_VERSION}")
-include_directories(inc inc/camera ${OpenCV_INCLUDE_DIRS})
-link_directories(${OpenCV_LIBRARY_DIRS})
+add_subdirectory(camera)
+add_subdirectory(app)
+add_subdirectory(test)
 
-# Add lightbox app (move these to separate library)
-set(CAMERA_SRC src/camera/camera_win.cpp
-               src/camera/camera.cpp
-               src/camera/camera_manager.cpp
-               src/camera/camera_info.cpp
-               src/camera/errors.cpp)
-
-set(CAMERA_INC inc/camera/camera_manager.hpp
-               inc/camera/camera_info.hpp
-               inc/camera/camera_win.hpp
-               inc/camera/camera.hpp
-               inc/camera/errors.hpp)
-
-add_library(libcamera ${CAMERA_SRC} ${CAMERA_INC})
-target_link_libraries(libcamera ${OpenCV_LIBS})
-target_compile_features(libcamera PUBLIC cxx_std_17)
-
-
-# Add lightbox app (move these to separate library)
-set(SRC src/lightbox.cpp src/main.cpp)
-set(INC inc/lightbox.hpp)
-
-add_executable(${PROJECT_NAME} ${SRC} ${INC})
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
-target_link_libraries( ${PROJECT_NAME} libcamera)
-
-# Setup GoogleTests
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/e2239ee6043f73722e7aa812a459f54a28552929.zip
+set(DOXYGEN_FILE_PATTERNS
+    *.hpp
+    *.cpp
+    *.py
+    *.md
+    *.h
+    *.c
+    *.asm
+    *.js
+    *.java
 )
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-# Basic unit tests
-add_executable(basic_tests test/basic_tests.cpp)
-target_link_libraries(basic_tests gtest_main libcamera)
-gtest_add_tests(TARGET basic_tests)
+set(DOXYGEN_PREDEFINED _WIN32 __linux__)
+set(DOXYGEN_GRAPHICAL_HIERARCHY YES)
+set(DOXYGEN_DIRECTORY_GRAPH YES)
+set(DOXYGEN_DOT_IMAGE_FORMAT svg)
+set(DOXYGEN_INTERACTIVE_SVG YES)
+set(DOXYGEN_CALL_GRAPH YES)
+set(DOXYGEN_CALLER_GRAPH YES)
+set(DOXYGEN_WARN_NO_PARAMDOC YES)
+set(DOXYGEN_EXTRACT_ALL YES)
+set(DOXYGEN_BUILTIN_STL_SUPPORT YES)
+set(DOXYGEN_JAVADOC_AUTOBRIEF YES)
+set(DOXYGEN_MULTILINE_CPP_IS_BRIEF YES)
+set(DOXYGEN_CLASS_GRAPH YES)
+set(DOXYGEN_COLLABORATION_GRAPH YES)
+set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_docs)
+doxygen_add_docs(
+  ${PROJECT_NAME}_docs ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/app/
+  ${CMAKE_CURRENT_SOURCE_DIR}/firmware/ ALL COMMENT "Generating lightbox docs"
+)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_docs DESTINATION ${CMAKE_INSTALL_INFODIR})

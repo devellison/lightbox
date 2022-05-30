@@ -1,3 +1,6 @@
+/// \file errors.hpp
+/// Error Result codes, exceptions, handling
+
 #ifndef LIGHTBOX_ERRORS_HPP_
 #define LIGHTBOX_ERRORS_HPP_
 
@@ -13,12 +16,23 @@ namespace zebral
 /// Expect lightbox to be small.... if not, this needs TLC.
 enum class Result : uint32_t
 {
-  SUCCESS       = 0,
-  STATUS        = 1,
-  UNKNOWN_ERROR = 0xFFFFFFFF,
-  ERROR         = 0x80000000,
-  INVALID_COMMAND_LINE,
-  CAMERA_ERROR = 0x80001000
+  ZBA_SUCCESS       = 0,
+  ZBA_STATUS        = 1,
+  ZBA_UNKNOWN_ERROR = 0xFFFFFFFF,
+
+  ZBA_ERROR                = 0x80000000,
+  ZBA_UNDEFINED_VALUE      = 0x80000001,
+  ZBA_INVALID_COMMAND_LINE = 0x80000003,
+  ZBA_ASSERTION_FAILED     = 0x80000004,
+
+  ZBA_CAMERA_ERROR       = 0x80001000,
+  ZBA_CAMERA_OPEN_FAILED = 0x80001001,
+
+  ZBA_SYS_ERROR     = 0x80002000,
+  ZBA_SYS_COM_ERROR = 0x80000001,
+  ZBA_SYS_MF_ERROR  = 0x80000002,
+  ZBA_SYS_ATT_ERROR = 0x80000003
+
 };
 
 /// Return a result as an unsigned
@@ -45,9 +59,10 @@ class Error : public std::runtime_error
  public:
   /// Generally, use ZEBRAL_THROW or similar macro to throw these so it'll capture the file/line as
   /// well.
-  Error(const std::string& msg, Result result = Result::UNKNOWN_ERROR, const char* file = nullptr,
-        int line = 0)
-      : std::runtime_error(BuildMsg(msg, result, file, line)), result_(result)
+  Error(const std::string& msg, Result result = Result::ZBA_UNKNOWN_ERROR,
+        const char* file = nullptr, int line = 0)
+      : std::runtime_error(BuildMsg(msg, result, file, line)),
+        result_(result)
   {
   }
 
