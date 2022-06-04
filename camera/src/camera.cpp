@@ -79,7 +79,7 @@ std::optional<CameraFrame> Camera::GetNewFrame(size_t timeout_ms)
   }
 
   // Timed out
-  ZEBRAL_LOG("Timeout or Empty Frame!");
+  ZBA_LOG("Timeout or Empty Frame!");
   return {};
 }
 
@@ -97,6 +97,19 @@ CameraInfo Camera::GetCameraInfo()
 {
   std::lock_guard<std::mutex> lock(frame_mutex_);
   return info_;
+}
+
+void Camera::SetFormat(const FormatInfo& info)
+{
+  OnSetFormat(info);
+  current_mode_ = std::make_unique<FormatInfo>(info);
+}
+
+/// Retrieves the camera mode. empty if not yet set.
+std::optional<FormatInfo> Camera::GetFormat()
+{
+  if (!current_mode_) return {};
+  return *current_mode_.get();
 }
 
 }  // namespace zebral

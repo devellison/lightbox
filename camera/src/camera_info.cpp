@@ -9,13 +9,6 @@ std::ostream& operator<<(std::ostream& os, const CameraInfo& camInfo)
   os << "    vid:" << std::hex << camInfo.vid << " pid:" << std::hex << camInfo.pid << std::dec
      << std::endl;
   os << "    <" << camInfo.path << ">" << std::endl;
-
-  for (const auto& curFormat : camInfo.formats)
-  {
-    os << "   (" << curFormat.width << "," << curFormat.height << ") Ch: " << curFormat.channels
-       << " Bits:" << curFormat.bitdepth << " Format:" << std::hex << curFormat.format << std::dec
-       << std::endl;
-  }
   return os;
 }
 

@@ -25,23 +25,31 @@ class CameraFrame
       : width_(0),
         height_(0),
         channels_(0),
-        bytes_per_pixel_(0),
+        bytes_per_channel_(0),
         is_signed_(false),
         is_floating_(false)
   {
   }
 
-  CameraFrame(int width, int height, int channels, int bytesPerPixel, bool is_signed,
-              bool is_floating_point, const uint8_t* data)
+  CameraFrame(int width, int height, int channels, int bytesPerChannel, bool is_signed,
+              bool is_floating_point, const uint8_t* data = nullptr)
       : width_(width),
         height_(height),
         channels_(channels),
-        bytes_per_pixel_(bytesPerPixel),
+        bytes_per_channel_(bytesPerChannel),
         is_signed_(is_signed),
         is_floating_(is_floating_point)
   {
     /// {TODO} won't work with stepped/padded data.
-    data_.assign((data), (data + width_ * height_ * channels_ * bytes_per_pixel_));
+    size_t dataSize = width_ * height_ * channels_ * bytes_per_channel_;
+    if (data)
+    {
+      data_.assign((data), (data + dataSize));
+    }
+    else
+    {
+      data_.resize(dataSize);
+    }
   }
 
   bool empty() const
@@ -64,9 +72,9 @@ class CameraFrame
     return channels_;
   }
 
-  int bytes_per_pixel() const
+  int bytes_per_channel() const
   {
-    return bytes_per_pixel_;
+    return bytes_per_channel_;
   }
 
   int is_signed() const
@@ -77,6 +85,11 @@ class CameraFrame
   bool is_floating() const
   {
     return is_floating_;
+  }
+
+  const size_t data_size() const
+  {
+    return data_.size();
   }
 
   const uint8_t* data() const
@@ -93,7 +106,7 @@ class CameraFrame
   int width_;
   int height_;
   int channels_;
-  int bytes_per_pixel_;
+  int bytes_per_channel_;
   bool is_signed_;
   bool is_floating_;
   std::vector<uint8_t> data_;

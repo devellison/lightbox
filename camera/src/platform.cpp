@@ -1,10 +1,12 @@
 #include "platform.hpp"
+#include <codecvt>
 #include <iomanip>
+#include <locale>
+#include <string>
 #include "errors.hpp"
 
 #if _WIN32
-#include <mfapi.h>
-#include <windows.h>
+#include <winrt/base.h>
 #endif
 
 namespace zebral
@@ -12,52 +14,43 @@ namespace zebral
 Platform::~Platform()
 {
 #if _WIN32
-  MFShutdown();
-  CoUninitialize();
+  winrt::uninit_apartment();
 #endif
 }
 
 Platform::Platform()
 {
-  SetUnhandled();
+  // SetUnhandled();
+
 #if _WIN32
-  if FAILED (CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE))
-  {
-    ZEBRAL_THROW("COM initialization failed.", Result::ZBA_SYS_COM_ERROR);
-  }
-
-  if (FAILED(MFStartup(MF_VERSION)))
-  {
-    ZEBRAL_THROW("Media Foundation initialization failed.", Result::ZBA_SYS_MF_ERROR);
-  }
-
+  winrt::init_apartment();
 #endif
 }
 
-double zebral_elapsed_sec(ZEBRAL_TSTAMP start)
+double zba_elapsed_sec(ZBA_TSTAMP start)
 {
-  return zebral_elapsed_sec(start, zebral_now());
+  return zba_elapsed_sec(start, zba_now());
 }
 
-double zebral_elapsed_sec(ZEBRAL_TSTAMP start, ZEBRAL_TSTAMP end)
+double zba_elapsed_sec(ZBA_TSTAMP start, ZBA_TSTAMP end)
 {
   double umsec = static_cast<double>(
       std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
   return umsec / 1000000.0;
 }
 
-ZEBRAL_CLOCK::time_point zebral_now()
+ZBA_CLOCK::time_point zba_now()
 {
-  return ZEBRAL_CLOCK::now();
+  return ZBA_CLOCK::now();
 }
 
-std::string zebral_local_time(ZEBRAL_TSTAMP tp, int sec_precision)
+std::string zba_local_time(ZBA_TSTAMP tp, int sec_precision)
 {
-  std::time_t t = ZEBRAL_CLOCK::to_time_t(tp);
+  std::time_t t = ZBA_CLOCK::to_time_t(tp);
   struct tm buf;
-  ZEBRAL_LOCALTIME(&t, &buf);
+  ZBA_LOCALTIME(&t, &buf);
 
-  double epoch_sec      = zebral_elapsed_sec(ZEBRAL_TSTAMP());
+  double epoch_sec      = zba_elapsed_sec(ZBA_TSTAMP());
   double fractional_sec = epoch_sec - static_cast<int>(epoch_sec);
 
   std::stringstream ss;
@@ -80,28 +73,29 @@ std::string zebral_local_time(ZEBRAL_TSTAMP tp, int sec_precision)
   }
   return ss.str();
 }
-
+#if _WIN32
 std::string WideToString(const WCHAR* wide)
 {
-#if _WIN32
   // IIRC this is probably quite slow. If we need to use it often write a custom converter or find
   // one.
+  DWORD strLength = WideCharToMultiByte(CP_UTF8, 0, wide, -1, 0, 0, 0, 0);
   std::string value;
-  int strLength = WideCharToMultiByte(CP_UTF8, 0, wide, -1, 0, 0, 0, 0);
   value.resize(strLength);
   WideCharToMultiByte(CP_UTF8, 0, wide, -1, static_cast<LPSTR>(value.data()), strLength, 0, 0);
   value.resize(strLength - 1);
   return value;
-#else
-  ZEBRAL_ASSERT(_WIN32, "Not implemented on other platforms.");
-#endif
-
-  /// Deprecated? Really?
-  /// implement if we need to.
-#if 0
-  std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8_val;
-  return utf8_val.str();
-#endif
 }
+
+winrt::hstring StringToWide(const std::string& str)
+{
+  DWORD strLength = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+  std::wstring value;
+  value.resize(strLength);
+  MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, static_cast<LPWSTR>(value.data()), strLength);
+  value.resize(strLength - 1);
+  winrt::hstring res(value.c_str());
+  return res;
+}
+#endif  //_WIN32
 
 }  // namespace zebral

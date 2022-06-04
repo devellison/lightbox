@@ -1,4 +1,6 @@
 build
+out
 install
 undocumented.txt
 .vscode
+.vs

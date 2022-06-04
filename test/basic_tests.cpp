@@ -1,9 +1,7 @@
-#include "errors.hpp"
 #include "gtest/gtest.h"
-#include "log.hpp"
+#include "zebral_camera.hpp"
 
 using namespace zebral;
-
 
 int main(int argc, char** argv)
 {

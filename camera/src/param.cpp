@@ -37,14 +37,14 @@ double Param::FromScaled(double scaled)
 double Param::ScaledToRaw(double scaled) const
 {
   double range = max_ - min_;
-  ZEBRAL_ASSERT(range > DBL_EPSILON, "RawToScaled called but range not set for param " + name_);
+  ZBA_ASSERT(range > DBL_EPSILON, "RawToScaled called but range not set for param " + name_);
   return scaled * range + min_;
 }
 
 double Param::RawToScaled(double raw) const
 {
   double range = max_ - min_;
-  ZEBRAL_ASSERT(range > DBL_EPSILON, "RawToScaled called but range not set for param " + name_);
+  ZBA_ASSERT(range > DBL_EPSILON, "RawToScaled called but range not set for param " + name_);
   return (raw - min_) / range;
 }
 
@@ -57,7 +57,7 @@ double Param::Scaled()
     case CurveType::Linear:
       return RawToScaled(value_);
     default:
-      ZEBRAL_THROW("Unknown CurveType for param " + name_, Result::ZBA_UNDEFINED_VALUE);
+      ZBA_THROW("Unknown CurveType for param " + name_, Result::ZBA_UNDEFINED_VALUE);
   }
 }
 

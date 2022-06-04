@@ -9,6 +9,9 @@
 #include "log.hpp"
 #include "platform.hpp"
 
+// This should replace all of the above, mostly.
+#include "zebral_camera.hpp"
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -17,20 +20,20 @@ using namespace zebral;
 
 void printHelp()
 {
-  ZEBRAL_LOG("lightbox v%s by Michael Ellison", LIGHTBOX_VERSION);
-  ZEBRAL_LOG("Usage: lightbox CAMERA_INDEX SERIAL_PORT");
+  std::cout << "lightbox v" << LIGHTBOX_VERSION << " by Michael Ellison " << std::endl;
+  std::cout << "Usage: lightbox CAMERA_INDEX SERIAL_PORT" << std::endl;
 }
 
 int main(int argc, char* argv[])
 {
   Platform platform;
 
-  ZEBRAL_LOG("Scanning cameras...");
+  std::cout << "Scanning cameras..." << std::endl;
   CameraManager camMgr;
   auto camList = camMgr.Enumerate();
   for (const auto& curCam : camList)
   {
-    ZEBRAL_LOGSS(curCam);
+    ZBA_LOGSS(curCam);
   }
 
   // Check if we have enough arguments
@@ -49,14 +52,16 @@ int main(int argc, char* argv[])
     // Create it
     if (curCam.index == camIndex)
     {
-      camera = camMgr.Create(curCam);
+      camera    = camMgr.Create(curCam);
+      auto info = camera->GetCameraInfo();
+      camera->SetFormat(info.formats[0]);
     }
   }
 
   // Bail if we don't have a camera
   if (!camera)
   {
-    ZEBRAL_LOG("Could not create camera %d", camIndex);
+    std::cerr << "Could not create camera: " << camIndex << std::endl;
     return to_int(Result::ZBA_CAMERA_ERROR);
   }
 
@@ -71,7 +76,7 @@ int main(int argc, char* argv[])
   {
     if (pressed == 'i')
     {
-      ZEBRAL_LOGSS(camera->GetCameraInfo());
+      std::cout << camera->GetCameraInfo() << std::endl;
     }
     auto frame = camera->GetNewFrame();
     if (frame)
@@ -81,7 +86,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-      ZEBRAL_LOG("Got an empty frame in loop.");
+      ZBA_LOG("Got an empty frame in loop.");
     }
   } while ('q' != (pressed = cv::waitKey(10)));
 

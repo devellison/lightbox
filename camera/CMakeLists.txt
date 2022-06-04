@@ -14,7 +14,7 @@ project(
 # part of the parent package.
 if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
   set(CPACK_PACKAGE_VENDOR "zebral.net")
-  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ZeBrAl Camera Library")
+  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "ZebralCam Library")
   set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
   set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
   set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
@@ -40,7 +40,7 @@ enable_testing()
 # main().
 if(MSVC)
   add_compile_options(/W4 /WX)
-  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib)
+  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib WindowsApp.lib)  
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
@@ -49,8 +49,7 @@ endif()
 
 set(SRC
     src/camera.cpp
-    src/camera_win.cpp
-    src/camera_win_impl.cpp
+    src/camera_winrt.cpp
     src/camera_v4l2.cpp
     src/camera_manager.cpp
     src/camera_info.cpp
@@ -58,19 +57,20 @@ set(SRC
     src/platform.cpp
     src/errors.cpp
     src/log.cpp
+    src/winrt_utils.cpp
 )
 
 set(INC
     inc/camera_manager.hpp
     inc/camera_info.hpp
-    inc/camera_win.hpp
-    inc/camera_win_impl.hpp
+    inc/camera_winrt.hpp
     inc/camera_v4l2.hpp
     inc/camera.hpp
     inc/param.hpp
     inc/platform.hpp
     inc/errors.hpp
     inc/log.hpp
+    inc/winrt_utils.hpp
 )
 
 add_library(${PROJECT_NAME} ${SRC} ${INC})

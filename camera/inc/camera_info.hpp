@@ -16,11 +16,13 @@ typedef void* OSHANDLE;
 /// Video format information.
 struct FormatInfo
 {
-  FormatInfo(int fmt_index = 0, int fmt_width = 0, int fmt_height = 0, int fmt_channels = 0,
-             int fmt_bitdepth = 0, int fmt_stride = 0, uint32_t fmt_format = 0)
+  FormatInfo(int fmt_index = 0, int fmt_width = 0, int fmt_height = 0, float fmt_fps = 0.0f,
+             int fmt_channels = 0, int fmt_bitdepth = 0, int fmt_stride = 0,
+             const std::string& fmt_format = "")
       : index(fmt_index),
         width(fmt_width),
         height(fmt_height),
+        fps(fmt_fps),
         channels(fmt_channels),
         bitdepth(fmt_bitdepth),
         stride(fmt_stride),
@@ -31,10 +33,11 @@ struct FormatInfo
   int index;
   int width;
   int height;
+  float fps;
   int channels;
   int bitdepth;
   int stride;
-  uint32_t format;
+  std::string format;
 };
 
 /// Information about a camera gathered from enumeration via CameraMgr

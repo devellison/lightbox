@@ -4,16 +4,16 @@
 
 namespace zebral
 {
-std::string zebral_sformat(const char* msg, ...)
+std::string zba_sformat(const char* msg, ...)
 {
   va_list vaArgs;
   va_start(vaArgs, msg);
-  std::string outstr = zebral_sformat(msg, vaArgs);
+  std::string outstr = zba_sformat(msg, vaArgs);
   va_end(vaArgs);
   return outstr;
 }
 
-std::string zebral_sformat(const char* msg, va_list vaArgs)
+std::string zba_sformat(const char* msg, va_list vaArgs)
 {
   va_list vaCopy;
 
@@ -31,23 +31,23 @@ std::string zebral_sformat(const char* msg, va_list vaArgs)
   return buff;
 }
 
-void zebral_log(ZEBRAL_LL level, const char* loc, const char* msg, ...)
+void zba_log(ZBA_LL level, const char* loc, const char* msg, ...)
 {
   if (!msg) return;
 
   // format message string
   va_list vaArgs;
   va_start(vaArgs, msg);
-  std::string outstr = zebral_sformat(msg, vaArgs);
+  std::string outstr = zba_sformat(msg, vaArgs);
   va_end(vaArgs);
 
   // compose the rest of the log string
   std::stringstream ss;
-  ss << "[" << zebral_local_time(zebral_now(), ZEBRAL_LOG_PRECISION) << "] ["
-     << std::this_thread::get_id() << "] " << loc << outstr;
+  ss << "[" << zba_local_time(zba_now(), ZBA_LOG_PRECISION) << "] [" << std::this_thread::get_id()
+     << "] " << loc << outstr;
 
   // Output, right now just to stdout/stderr
-  if (level == ZEBRAL_LL::LL_ERROR)
+  if (level == ZBA_LL::LL_ERROR)
   {
     std::cerr << ss.str() << std::endl;
   }

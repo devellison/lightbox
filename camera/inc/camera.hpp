@@ -22,9 +22,6 @@ using TimeStamp = std::chrono::high_resolution_clock::time_point;
 TimeStamp TimeStampNow();
 
 /// Frame callback
-/// {TODO} we may not want to use cv::Mat and instead just return
-///        the raw data?
-/// This would make the camera code NOT dependent on OpenCV...
 typedef std::function<void(const CameraInfo& info, const CameraFrame& image, TimeStamp timestamp)>
     FrameCallback;
 
@@ -56,6 +53,12 @@ class Camera
   /// Retrieve the camera's info
   CameraInfo GetCameraInfo();
 
+  /// Sets the camera mode (should be done before calling Start()!)
+  virtual void SetFormat(const FormatInfo& info);
+
+  /// Retrieves the camera mode. empty if not yet set.
+  virtual std::optional<FormatInfo> GetFormat();
+
  protected:
   /// Handles received frame by updating last_frame_ and calling callback if available.
   virtual void OnFrameReceived(const CameraFrame& frame);
@@ -66,14 +69,18 @@ class Camera
   /// Camera/API specific stop
   virtual void OnStop() = 0;
 
-  CameraInfo info_;                 ///< Camera info, used for creation
-  FrameCallback callback_;          ///< Optional frame callback
-  bool exiting_;                    ///< Exiting flag for capture thread (if any)
-  bool running_;                    ///< Running flag - true if camera started
-  mutable std::mutex frame_mutex_;  ///< Lock on last_frame
-  CameraFrame last_frame_;          ///< Last frame received
-  TimeStamp last_timestamp_;        ///< Timestamp of last frame received
-  std::condition_variable cv_;      ///< Condition var for frame notification
+  /// Camera/API specific set camera mode.
+  virtual void OnSetFormat(const FormatInfo& mode) = 0;
+
+  CameraInfo info_;                           ///< Camera info, used for creation
+  std::unique_ptr<FormatInfo> current_mode_;  ///< Current mode, null if unset.
+  FrameCallback callback_;                    ///< Optional frame callback
+  bool exiting_;                              ///< Exiting flag for capture thread (if any)
+  bool running_;                              ///< Running flag - true if camera started
+  mutable std::mutex frame_mutex_;            ///< Lock on last_frame
+  CameraFrame last_frame_;                    ///< Last frame received
+  TimeStamp last_timestamp_;                  ///< Timestamp of last frame received
+  std::condition_variable cv_;                ///< Condition var for frame notification
 };
 
 }  // namespace zebral

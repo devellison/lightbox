@@ -27,6 +27,7 @@ enum class Result : uint32_t
 
   ZBA_CAMERA_ERROR       = 0x80001000,
   ZBA_CAMERA_OPEN_FAILED = 0x80001001,
+  ZBA_UNSUPPORTED_FMT    = 0x80001002,
 
   ZBA_SYS_ERROR     = 0x80002000,
   ZBA_SYS_COM_ERROR = 0x80000001,
@@ -57,7 +58,7 @@ void SetUnhandled();
 class Error : public std::runtime_error
 {
  public:
-  /// Generally, use ZEBRAL_THROW or similar macro to throw these so it'll capture the file/line as
+  /// Generally, use ZBA_THROW or similar macro to throw these so it'll capture the file/line as
   /// well.
   Error(const std::string& msg, Result result = Result::ZBA_UNKNOWN_ERROR,
         const char* file = nullptr, int line = 0)
@@ -84,7 +85,7 @@ class Error : public std::runtime_error
 };
 
 /// Macro to throw an error with location
-#define ZEBRAL_THROW(msg, result) \
+#define ZBA_THROW(msg, result) \
   throw Error(std::string(__FILE__) + "(" + std::to_string(__LINE__) + "): " + msg, result)
 
 }  // namespace zebral

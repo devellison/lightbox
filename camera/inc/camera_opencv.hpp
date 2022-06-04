@@ -6,7 +6,6 @@
 /// removed.
 #ifndef LIGHTBOX_CAMERA_CAMERA_OPENCV_HPP_
 #define LIGHTBOX_CAMERA_CAMERA_OPENCV_HPP_
-#include <opencv2/opencv.hpp>
 #include "camera.hpp"
 
 namespace zebral
@@ -18,6 +17,8 @@ class CameraOpenCV : public Camera
   CameraOpenCV(const CameraInfo& info);
   virtual ~CameraOpenCV();
 
+  static std::vector<CameraInfo> Enumerate();
+
  protected:
   /// Loops until exiting_ is true grabbing frames
   void CaptureThread();
@@ -26,8 +27,8 @@ class CameraOpenCV : public Camera
   /// Called once the thread stops to clean up the capture_ object
   void OnStop() override;
 
-  std::unique_ptr<cv::VideoCapture> capture_;  ///< Capture object from OpenCV
-  std::thread camera_thread_;                  ///< Thread for capture
+  class Impl;
+  std::unique_ptr<Impl> impl_;
 };
 }  // namespace zebral
 #endif  // LIGHTBOX_CAMERA_CAMERA_OPENCV_HPP_

@@ -6,17 +6,56 @@
 
 #include <opencv2/opencv.hpp>
 #include "camera_frame.hpp"
+#include "errors.hpp"
 
 namespace zebral
 {
 class Converter
 {
  public:
+  static cv::Mat Camera2Cv(const CameraFrame& image)
+  {
+    return cv::Mat(image.height(), image.width(), CVTypeFromImage(image),
+                   const_cast<void*>(reinterpret_cast<const void*>(image.data())));
+  }
+
+  CameraFrame CvToCameraFrame(const cv::Mat& frame)
+  {
+    if (frame.empty()) return CameraFrame();
+    bool is_signed = true;
+    bool is_float  = false;
+    auto depth     = frame.type() & CV_MAT_DEPTH_MASK;
+    switch (depth)
+    {
+      case CV_8U:
+      case CV_16U:
+        is_signed = false;
+        is_float  = false;
+        break;
+      case CV_8S:
+      case CV_16S:
+      case CV_32S:
+        is_signed = true;
+        is_float  = false;
+        break;
+      case CV_64F:
+      case CV_32F:
+        is_signed = true;
+        is_float  = true;
+        break;
+      default:
+        throw Error("Unsupported cv::Mat type:" + std::to_string(frame.type()),
+                    Result::ZBA_UNSUPPORTED_FMT);
+    }
+
+    return CameraFrame(frame.cols, frame.rows, frame.channels(),
+                       static_cast<int>(frame.elemSize1()), is_signed, is_float, frame.data);
+  }
   static int CVTypeFromImage(const CameraFrame& image)
   {
     int type_id = -1;
 
-    switch (image.bytes_per_pixel())
+    switch (image.bytes_per_channel())
     {
       case 1:
         type_id = image.is_signed() ? CV_8S : CV_8U;
@@ -46,19 +85,12 @@ class Converter
     if (type_id == -1)
     {
       throw std::runtime_error(
-          "Unsupported image type. bytesPerPixel:" + std::to_string(image.bytes_per_pixel()) +
+          "Unsupported image type. bytes_per_channel:" + std::to_string(image.bytes_per_channel()) +
           " signed:" + std::to_string(image.is_signed()) +
           " float:" + std::to_string(image.is_floating()));
     }
 
     return CV_MAKETYPE(type_id, image.channels());
-  }
-
-  static cv::Mat Camera2Cv(const CameraFrame& image)
-  {
-    cv::Mat img(image.height(), image.width(), CVTypeFromImage(image),
-                const_cast<void*>(reinterpret_cast<const void*>(image.data())));
-    return img;
   }
 
  private:
