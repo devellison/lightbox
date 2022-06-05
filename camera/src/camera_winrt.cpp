@@ -47,7 +47,37 @@ namespace zebral
 class CameraWinRt::Impl
 {
  public:
-  Impl(CameraWinRt* parent) : parent_(*parent), reader_(nullptr), started_(false) {}
+  Impl(CameraWinRt* parent)
+      : parent_(*parent),
+        reader_(nullptr),
+        exposure_(nullptr),
+        started_(false)
+  {
+  }
+
+  // So.... these return false for my cameras on my system.
+  // SDK 10.0.19041.0, Windows 10 Home 10.0.19041.
+  void CheckNewControlsSupported()
+  {
+    ZBA_LOG("ExposureControl %d", mc_.VideoDeviceController().ExposureControl().Supported());
+    ZBA_LOG("ExposureCompensationControl %d",
+            mc_.VideoDeviceController().ExposureCompensationControl().Supported());
+    ZBA_LOG("WhiteBalanceControl %d",
+            mc_.VideoDeviceController().WhiteBalanceControl().Supported());
+    ZBA_LOG("ExposurePriorityVideoControl %d",
+            mc_.VideoDeviceController().ExposurePriorityVideoControl().Supported());
+    ZBA_LOG("FocusControl %d", mc_.VideoDeviceController().FocusControl().Supported());
+    ZBA_LOG("FlashControl %d", mc_.VideoDeviceController().FlashControl().Supported());
+    ZBA_LOG("ISO Speed Control %d", mc_.VideoDeviceController().IsoSpeedControl().Supported());
+    ZBA_LOG("HDRVideoControl %d", mc_.VideoDeviceController().HdrVideoControl().Supported());
+    // Because one of them had to be different.
+    ZBA_LOG("IRTorchControl %d", mc_.VideoDeviceController().InfraredTorchControl().IsSupported());
+
+    mc_.VideoDeviceController().BacklightCompensation().TrySetAuto(true);
+    mc_.VideoDeviceController().Brightness().TrySetAuto(true);
+    mc_.VideoDeviceController().Contrast().TrySetAuto(true);
+    // mc_.VideoDeviceController().ExposureControl().SetAutoAsync(true).get();
+  }
 
   /// Frame callback from the frame reader.
   void OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
@@ -97,13 +127,14 @@ class CameraWinRt::Impl
     }
   }
 
-  CameraWinRt& parent_;
-  MediaCapture mc_;
-  MediaCaptureInitializationSettings settings_;
-  IMapView<hstring, MediaFrameSource> sources_;
-  MediaFrameReader reader_;
-  event_token reader_token_;
-  bool started_;
+  CameraWinRt& parent_;                          ///< CameraWinRT that owns this Impl
+  MediaCapture mc_;                              ///< MediaCapture base object
+  MediaCaptureInitializationSettings settings_;  ///< Settings for mc_
+  IMapView<hstring, MediaFrameSource> sources_;  ///< FrameSources
+  MediaFrameReader reader_;                      ///< Reader once we've picked a source
+  ExposureControl exposure_;                     ///< Control for exposure of camera
+  event_token reader_token_;                     ///< Callback token
+  bool started_;                                 ///< True if started.
 };
 
 // CameraWin main class

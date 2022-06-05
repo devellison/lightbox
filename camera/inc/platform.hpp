@@ -5,9 +5,9 @@
 
 #include <chrono>
 #include <string>
-#include "autorel_win.hpp"
 
 #if _WIN32
+#include <windows.h>
 #include <winrt/base.h>
 #endif
 
