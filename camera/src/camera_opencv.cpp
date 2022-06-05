@@ -1,29 +1,28 @@
+#if defined(__linux__)
 #include "camera_opencv.hpp"
 
 #include <opencv2/opencv.hpp>
 
+#include "camera2cv.hpp"
 #include "errors.hpp"
 #include "log.hpp"
 
-#if defined(__linux__)
 #define kPREF_API cv::CAP_V4L2
-#else
-#define kPREF_API cv::CAP_ANY
-#endif
 
 namespace zebral
 {
-
 class CameraOpenCV::Impl
 {
  public:
-     Impl(CameraOpenCV* parent) : parent_(*parent), cv::VideoCapture(parent_.info_.index, parent_.info_.api) {
-
-      }
+  Impl(CameraOpenCV* parent)
+      : parent_(*parent),
+        capture_(cv::VideoCapture(parent_.info_.index, parent_.info_.api))
+  {
+  }
 
   CameraOpenCV& parent_;
-      cv::VideoCapture capture_;  ///< Capture object from OpenCV
-      std::thread camera_thread_;                  ///< Thread for capture
+  cv::VideoCapture capture_;   ///< Capture object from OpenCV
+  std::thread camera_thread_;  ///< Thread for capture
 };
 
 CameraOpenCV::CameraOpenCV(const CameraInfo& info) : Camera(info) {}
@@ -33,9 +32,8 @@ CameraOpenCV::~CameraOpenCV() {}
 void CameraOpenCV::OnStart()
 {
   impl_ = std::make_unique<Impl>(this);
-  if (!impl_->capture_->isOpened())
+  if (!impl_->capture_.isOpened())
   {
-    impl_->capture_.reset();
     throw Error("Failed to open camera.", Result::ZBA_CAMERA_OPEN_FAILED);
   }
   impl_->camera_thread_ = std::thread(&CameraOpenCV::CaptureThread, this);
@@ -43,13 +41,15 @@ void CameraOpenCV::OnStart()
 
 void CameraOpenCV::OnStop()
 {
+  if (!impl_)
+  {
+    return;
+  }
   if (impl_->camera_thread_.joinable())
   {
     impl_->camera_thread_.join();
-
-    impl_->capture_->release();
-    impl_->capture_.reset();
   }
+  impl_.reset();
 }
 
 void CameraOpenCV::CaptureThread()
@@ -57,22 +57,21 @@ void CameraOpenCV::CaptureThread()
   while (!exiting_)
   {
     cv::Mat frame;
-    if (impl_->capture_->read(frame))
+    if (impl_->capture_.read(frame))
     {
       if (exiting_)
       {
         return;
       }
-      auto image = CameraFrame CvToCameraFrame(frame);
+      auto image = Converter::CvToCameraFrame(frame);
       OnFrameReceived(image);
-      
     }
   }
 }
 
 // This is temporary
 // Replace with platform specific code.
-std::vector<CameraInfo> CameraOpenCV::EnumerateOpenCV()
+std::vector<CameraInfo> CameraOpenCV::Enumerate()
 {
   std::vector<CameraInfo> cameras;
   // OpenCV doesn't give a count of devices.
@@ -93,5 +92,5 @@ std::vector<CameraInfo> CameraOpenCV::EnumerateOpenCV()
   return cameras;
 }
 
-
 }  // namespace zebral
+#endif  // __linux__

@@ -27,6 +27,8 @@ class CameraOpenCV : public Camera
   /// Called once the thread stops to clean up the capture_ object
   void OnStop() override;
 
+  void OnSetFormat(const FormatInfo&) override {}
+
   class Impl;
   std::unique_ptr<Impl> impl_;
 };

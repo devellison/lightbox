@@ -4,6 +4,7 @@
 #include "param.hpp"
 #include "errors.hpp"
 #include "log.hpp"
+#include <cfloat>
 
 namespace zebral
 {

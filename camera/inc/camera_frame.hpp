@@ -21,6 +21,8 @@ namespace zebral
 class CameraFrame
 {
  public:
+  /// Default ctor, just zeros everything.
+  /// empty() will return true.
   CameraFrame()
       : width_(0),
         height_(0),
@@ -31,6 +33,8 @@ class CameraFrame
   {
   }
 
+  /// Normal ctor - if data is provided, copies it into the vector.
+  /// Otherwise, reserves space for it.
   CameraFrame(int width, int height, int channels, int bytesPerChannel, bool is_signed,
               bool is_floating_point, const uint8_t* data = nullptr)
       : width_(width),
@@ -52,64 +56,74 @@ class CameraFrame
     }
   }
 
+  /// Returns true if the data buffer has no data.
   bool empty() const
   {
     return data_.size() == 0;
   }
 
+  /// Pixel width of the image
   int width() const
   {
     return width_;
   }
 
+  /// Pixel height of the image
   int height() const
   {
     return height_;
   }
 
+  /// Number of channels (e.g. RGBA = 4)
   int channels() const
   {
     return channels_;
   }
 
+  /// Bytes per pixel per channel, so in RGBA with 8-bits per channel per pixel, is 1
   int bytes_per_channel() const
   {
     return bytes_per_channel_;
   }
 
+  /// Is the data a signed type?
   int is_signed() const
   {
     return is_signed_;
   }
 
+  /// Is the data a floating type?
   bool is_floating() const
   {
     return is_floating_;
   }
 
-  const size_t data_size() const
+  /// Size of image data in bytes
+  size_t data_size() const
   {
     return data_.size();
   }
 
+  /// Pointer to start of image data
   const uint8_t* data() const
   {
     return data_.data();
   }
 
+  /// Pointer to start of image data
   uint8_t* data()
   {
     return data_.data();
   }
 
  protected:
-  int width_;
-  int height_;
-  int channels_;
-  int bytes_per_channel_;
-  bool is_signed_;
-  bool is_floating_;
-  std::vector<uint8_t> data_;
+  int width_;                  ///< width of image in pixels
+  int height_;                 ///< height of image in pixels
+  int channels_;               ///< number of channels (expect interleaved channels in data)
+  int bytes_per_channel_;      ///< bytes per pixel per channel
+  bool is_signed_;             ///< is data a signed type?
+  bool is_floating_;           ///< is data a floating type?
+  std::vector<uint8_t> data_;  ///< Vector to store data
 };
 
 }  // namespace zebral

@@ -30,6 +30,11 @@ enum class ZBA_LL : int
   LL_INFO    ///< Info log level (stdout)
 };
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#endif
+
 /// Normal logging macro - goes to stdout
 /// \param msg - message and printf style formatting string
 /// \param ... - printf style arguments
@@ -39,6 +44,10 @@ enum class ZBA_LL : int
 /// \param msg - message and printf style formatting string
 /// \param ... - printf style arguments
 #define ZBA_ERR(msg, ...) zba_log(ZBA_LL::LL_ERROR, ZBA_LOCINFO, msg, ##__VA_ARGS__)
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 /// This logs types that have an operator<< overload but not a string conversion.
 /// \param obj - object to log, must have operator<< overload

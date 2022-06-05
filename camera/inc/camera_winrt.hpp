@@ -1,3 +1,4 @@
+#if _WIN32
 #ifndef LIGHTBOX_CAMERA_CAMERA_WINRT_HPP_
 #define LIGHTBOX_CAMERA_CAMERA_WINRT_HPP_
 
@@ -26,8 +27,10 @@ class CameraWinRt : public Camera
 
   /// Loops until exiting_ is true grabbing frames
   void CaptureThread();
+
   /// Creates the capture_ object before thread is started
   void OnStart() override;
+
   /// Called once the thread stops to clean up the capture_ object
   void OnStop() override;
 
@@ -41,3 +44,4 @@ class CameraWinRt : public Camera
 };
 }  // namespace zebral
 #endif  // LIGHTBOX_CAMERA_CAMERA_WINRT_HPP_
+#endif  // _WIN32

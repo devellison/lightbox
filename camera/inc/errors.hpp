@@ -16,23 +16,23 @@ namespace zebral
 /// Expect lightbox to be small.... if not, this needs TLC.
 enum class Result : uint32_t
 {
-  ZBA_SUCCESS       = 0,
-  ZBA_STATUS        = 1,
-  ZBA_UNKNOWN_ERROR = 0xFFFFFFFF,
+  ZBA_SUCCESS       = 0,  ///< General success result
+  ZBA_STATUS        = 1,  ///< Positive values (no high bit set) are successful, but with info
+  ZBA_UNKNOWN_ERROR = 0xFFFFFFFF,  ///< negative values are errors
 
-  ZBA_ERROR                = 0x80000000,
+  ZBA_ERROR                = 0x80000000,  ///< General errors
   ZBA_UNDEFINED_VALUE      = 0x80000001,
   ZBA_INVALID_COMMAND_LINE = 0x80000003,
   ZBA_ASSERTION_FAILED     = 0x80000004,
 
-  ZBA_CAMERA_ERROR       = 0x80001000,
+  ZBA_CAMERA_ERROR       = 0x80001000,  ///< Camera errors
   ZBA_CAMERA_OPEN_FAILED = 0x80001001,
   ZBA_UNSUPPORTED_FMT    = 0x80001002,
 
-  ZBA_SYS_ERROR     = 0x80002000,
-  ZBA_SYS_COM_ERROR = 0x80000001,
-  ZBA_SYS_MF_ERROR  = 0x80000002,
-  ZBA_SYS_ATT_ERROR = 0x80000003
+  ZBA_SYS_ERROR     = 0x80002000,  ///< System errors
+  ZBA_SYS_COM_ERROR = 0x80002001,
+  ZBA_SYS_MF_ERROR  = 0x80002002,
+  ZBA_SYS_ATT_ERROR = 0x80002003
 
 };
 
@@ -62,31 +62,34 @@ class Error : public std::runtime_error
   /// well.
   Error(const std::string& msg, Result result = Result::ZBA_UNKNOWN_ERROR,
         const char* file = nullptr, int line = 0)
-      : std::runtime_error(BuildMsg(msg, result, file, line)),
-        result_(result)
+      : std::runtime_error(msg),
+        result_(result),
+        where_(std::string(file) + "(" + std::to_string(line) + ")")
   {
   }
 
   virtual ~Error() = default;
 
-  /// Build an exception message with the error code, file, and line.
-  static std::string BuildMsg(const std::string& msg, Result result, const char* file, int line)
+  /// Return the error code (why it happened)
+  Result why() const
   {
-    std::string fullmsg = msg + " (0x" + to_string(result) + ")";
-    if (nullptr != file)
-    {
-      fullmsg += "@" + std::string(file) + "(" + std::to_string(line) + ")";
-    }
-    return fullmsg;
+    return result_;
   }
 
+  /// Return the location in the source (where it happened)
+  std::string where() const
+  {
+    return where_;
+  }
+
+ protected:
   /// Numeric result in case we want to handle things nicely.
   Result result_;
+  std::string where_;
 };
 
 /// Macro to throw an error with location
-#define ZBA_THROW(msg, result) \
-  throw Error(std::string(__FILE__) + "(" + std::to_string(__LINE__) + "): " + msg, result)
+#define ZBA_THROW(msg, result) throw Error(msg, result, __FILE__, __LINE__)
 
 }  // namespace zebral
 #endif  // LIGHTBOX_ERRORS_HPP_

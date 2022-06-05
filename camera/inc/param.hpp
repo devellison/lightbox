@@ -9,6 +9,7 @@
 namespace zebral
 {
 /// Scaled parameter type
+/// Work in progress, just an idea right now
 class Param
 {
  public:

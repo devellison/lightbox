@@ -31,6 +31,7 @@ typedef std::function<void(const CameraInfo& info, const CameraFrame& image, Tim
 class Camera
 {
  public:
+  /// Constructor - requires a CameraInfo from CameraManager's Enumerate() function.
   Camera(const CameraInfo& info);
   virtual ~Camera() = default;
 

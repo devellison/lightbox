@@ -10,41 +10,41 @@
 
 namespace zebral
 {
-/// Generic OSHandle for creation. Using this so we don't have to pollute everything
+/// Generic OSHandle for creation when needed. Using this so we don't have to pollute everything
 typedef void* OSHANDLE;
 
 /// Video format information.
 struct FormatInfo
 {
-  FormatInfo(int fmt_index = 0, int fmt_width = 0, int fmt_height = 0, float fmt_fps = 0.0f,
-             int fmt_channels = 0, int fmt_bitdepth = 0, int fmt_stride = 0,
-             const std::string& fmt_format = "")
-      : index(fmt_index),
-        width(fmt_width),
+  /// Format information
+  FormatInfo(int fmt_width = 0, int fmt_height = 0, float fmt_fps = 0.0f, int fmt_channels = 0,
+             int fmt_bytespppc = 0, int fmt_stride = 0, const std::string& fmt_format = "")
+      : width(fmt_width),
         height(fmt_height),
         fps(fmt_fps),
         channels(fmt_channels),
-        bitdepth(fmt_bitdepth),
+        bytespppc(fmt_bytespppc),
         stride(fmt_stride),
         format(fmt_format)
   {
   }
 
-  int index;
-  int width;
-  int height;
-  float fps;
-  int channels;
-  int bitdepth;
-  int stride;
-  std::string format;
+  int width;           ///< Width in pixels
+  int height;          ///< Height in pixels
+  float fps;           ///< Expected frames per second
+  int channels;        ///< Num channels
+  int bytespppc;       ///< Bytes per pixel per channel
+  int stride;          ///< Stride (bytes per row)
+  std::string format;  ///< Format string (FourC usually)
 };
 
 /// Information about a camera gathered from enumeration via CameraMgr
 struct CameraInfo
 {
+  /// No format selected
   static constexpr int NO_FORMAT_SELECTED = -1;
 
+  /// CameraInfo ctor
   CameraInfo(int cam_idx, int cam_api, const std::string& cam_name, const std::string& cam_path,
              OSHANDLE os_handle, uint16_t vid = 0, uint16_t pid = 0)
       : index(cam_idx),
@@ -58,6 +58,7 @@ struct CameraInfo
   {
   }
 
+  /// Add a format to the camera info
   void AddFormat(const FormatInfo& format)
   {
     formats.emplace_back(format);
@@ -75,6 +76,7 @@ struct CameraInfo
   int selected_format;  ///< index into formats of selected one, or NO_FORMAT_SELECTED for none.
 };
 
+/// Convenience operator for dumping CameraInfos for debugging
 std::ostream& operator<<(std::ostream& os, const CameraInfo& camInfo);
 
 }  // namespace zebral

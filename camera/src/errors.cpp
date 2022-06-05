@@ -63,9 +63,10 @@ void SetUnhandled()
     catch (const Error& e)
     {
       std::cerr << "Exception: " << e.what() << std::endl;
-
+      std::cerr << "Result: 0x" << std::hex << to_int(e.why()) << std::dec << std::endl;
+      std::cerr << "At: " << e.where() << std::endl;
       // Exit with the Result code
-      std::exit(to_int(e.result_));
+      std::exit(to_int(e.why()));
     }
     catch (const std::runtime_error& e)
     {

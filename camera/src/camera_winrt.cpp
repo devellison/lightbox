@@ -1,3 +1,4 @@
+#if _WIN32
 #include "camera_winrt.hpp"
 
 #include <regex>
@@ -17,7 +18,16 @@
 #include <winrt/Windows.Media.Devices.h>
 #include <winrt/Windows.Media.MediaProperties.h>
 #include <winrt/Windows.Media.h>
+
 #include <winrt/base.h>
+
+// Seems like some of the control features in the API aren't there yet, even on Windows 11?
+// If this is on, calls and checks to see if they're enabled and logs.
+#ifdef NDEBUG
+#define CHECK_EXPOSURE_FEATURES 0
+#else
+#define CHECK_EXPOSURE_FEATURES 1
+#endif
 
 // Required to gain access to software bitmap pixels directly.
 struct __declspec(uuid("5b0d3235-4dba-4d44-865e-8f1d0e4fd04d")) __declspec(novtable)
@@ -51,31 +61,58 @@ class CameraWinRt::Impl
       : parent_(*parent),
         reader_(nullptr),
         exposure_(nullptr),
-        started_(false)
+        started_(false),
+        device_(nullptr)
   {
   }
 
-  // So.... these return false for my cameras on my system.
-  // SDK 10.0.19041.0, Windows 10 Home 10.0.19041.
+  /// {TODO} So.... these return false for my cameras on my system.
+  /// SDK 10.0.19041.0, Windows 10 Home 10.0.19041.
+  /// Some things seem to say that it's just not ready yet on Windows 11
+  /// It seems like you need to go through older APIs currently, which is painful.
   void CheckNewControlsSupported()
   {
-    ZBA_LOG("ExposureControl %d", mc_.VideoDeviceController().ExposureControl().Supported());
-    ZBA_LOG("ExposureCompensationControl %d",
+    ZBA_LOG("Checking VideoDeviceController controls...");
+    ZBA_LOG(" ExposureControl %d", mc_.VideoDeviceController().ExposureControl().Supported());
+    ZBA_LOG(" ExposureCompensationControl %d",
             mc_.VideoDeviceController().ExposureCompensationControl().Supported());
-    ZBA_LOG("WhiteBalanceControl %d",
+    ZBA_LOG(" WhiteBalanceControl %d",
             mc_.VideoDeviceController().WhiteBalanceControl().Supported());
-    ZBA_LOG("ExposurePriorityVideoControl %d",
+    ZBA_LOG(" ExposurePriorityVideoControl %d",
             mc_.VideoDeviceController().ExposurePriorityVideoControl().Supported());
-    ZBA_LOG("FocusControl %d", mc_.VideoDeviceController().FocusControl().Supported());
-    ZBA_LOG("FlashControl %d", mc_.VideoDeviceController().FlashControl().Supported());
-    ZBA_LOG("ISO Speed Control %d", mc_.VideoDeviceController().IsoSpeedControl().Supported());
-    ZBA_LOG("HDRVideoControl %d", mc_.VideoDeviceController().HdrVideoControl().Supported());
+    ZBA_LOG(" FocusControl %d", mc_.VideoDeviceController().FocusControl().Supported());
+    ZBA_LOG(" FlashControl %d", mc_.VideoDeviceController().FlashControl().Supported());
+    ZBA_LOG(" ISO Speed Control %d", mc_.VideoDeviceController().IsoSpeedControl().Supported());
+    ZBA_LOG(" HDRVideoControl %d", mc_.VideoDeviceController().HdrVideoControl().Supported());
     // Because one of them had to be different.
-    ZBA_LOG("IRTorchControl %d", mc_.VideoDeviceController().InfraredTorchControl().IsSupported());
+    ZBA_LOG(" IRTorchControl %d", mc_.VideoDeviceController().InfraredTorchControl().IsSupported());
 
-    mc_.VideoDeviceController().BacklightCompensation().TrySetAuto(true);
-    mc_.VideoDeviceController().Brightness().TrySetAuto(true);
-    mc_.VideoDeviceController().Contrast().TrySetAuto(true);
+    // Checking device
+    ZBA_LOG(" Checking device....");
+    ZBA_LOG(" ExposureCompensationControl %d",
+            device_.Controller().VideoDeviceController().ExposureCompensationControl().Supported());
+
+    ZBA_LOG(" WhiteBalanceControl %d",
+            device_.Controller().VideoDeviceController().WhiteBalanceControl().Supported());
+
+    ZBA_LOG(
+        " ExposurePriorityVideoControl %d",
+        device_.Controller().VideoDeviceController().ExposurePriorityVideoControl().Supported());
+    ZBA_LOG(" FocusControl %d",
+            device_.Controller().VideoDeviceController().FocusControl().Supported());
+    ZBA_LOG(" FlashControl %d",
+            device_.Controller().VideoDeviceController().FlashControl().Supported());
+    ZBA_LOG(" ISO Speed Control %d",
+            device_.Controller().VideoDeviceController().IsoSpeedControl().Supported());
+    ZBA_LOG(" HDRVideoControl %d",
+            device_.Controller().VideoDeviceController().HdrVideoControl().Supported());
+    // Because one of them had to be different.
+    ZBA_LOG(" IRTorchControl %d",
+            device_.Controller().VideoDeviceController().InfraredTorchControl().IsSupported());
+
+    // mc_.VideoDeviceController().BacklightCompensation().TrySetAuto(true);
+    // mc_.VideoDeviceController().Brightness().TrySetAuto(true);
+    // mc_.VideoDeviceController().Contrast().TrySetAuto(true);
     // mc_.VideoDeviceController().ExposureControl().SetAutoAsync(true).get();
   }
 
@@ -135,7 +172,19 @@ class CameraWinRt::Impl
   ExposureControl exposure_;                     ///< Control for exposure of camera
   event_token reader_token_;                     ///< Callback token
   bool started_;                                 ///< True if started.
+  MediaFrameSource device_;
 };
+
+FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
+{
+  auto w         = curFormat.VideoFormat().Width();
+  auto h         = curFormat.VideoFormat().Height();
+  auto subType   = curFormat.Subtype();
+  auto frameRate = curFormat.FrameRate();
+  float fps =
+      static_cast<float>(frameRate.Numerator()) / static_cast<float>(frameRate.Denominator());
+  return FormatInfo(w, h, fps, 0, 0, 0, winrt::to_string(subType));
+}
 
 // CameraWin main class
 // COM interfaces and most of the code
@@ -148,7 +197,7 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
 
   for (auto curDevice : devices)
   {
-    std::string deviceId = WideToString(curDevice.Id().c_str());
+    std::string deviceId = winrt::to_string(curDevice.Id());
     if (deviceId == info_.path)
     {
       impl_->settings_.SourceGroup(curDevice);
@@ -165,7 +214,7 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
       }
       catch (winrt::hresult_error const& ex)
       {
-        ZBA_ERR(WideToString(ex.message().c_str()).c_str());
+        ZBA_ERR(winrt::to_string(ex.message()).c_str());
         ZBA_THROW("Unable to initialize capture for device: " + info_.name,
                   Result::ZBA_CAMERA_OPEN_FAILED);
       }
@@ -177,6 +226,7 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
     ZBA_THROW("Didn't find requested capture device: " + info_.name,
               Result::ZBA_CAMERA_OPEN_FAILED);
   }
+
   /// Now enumerate modes...
   auto frameSources = impl_->mc_.FrameSources();
 
@@ -190,25 +240,14 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
   // Some may be IR/DEPTH/etc. Need to test those.
   for (const auto& curSource : frameSources)
   {
-    auto mediaFrameSource = curSource.Value();
-    auto formats          = mediaFrameSource.SupportedFormats();
+    impl_->device_ = curSource.Value();
+    auto formats   = impl_->device_.SupportedFormats();
     for (const auto& curFormat : formats)
     {
       // Skip non-Video formats.
       auto major = curFormat.MajorType();
       if (major != L"Video") continue;
-
-      // Get attributes and store.
-      // This is a list of all acceptable combinations.
-      auto w         = curFormat.VideoFormat().Width();
-      auto h         = curFormat.VideoFormat().Height();
-      auto subType   = curFormat.Subtype();
-      auto frameRate = curFormat.FrameRate();
-
-      float fps =
-          static_cast<float>(frameRate.Numerator()) / static_cast<float>(frameRate.Denominator());
-      info_.formats.emplace_back(static_cast<int>(info_.formats.size()), w, h, fps, 0, 0, 0,
-                                 WideToString(subType.c_str()));
+      info_.formats.emplace_back(MediaFrameFormatToFormat(curFormat));
     }
   }
 }
@@ -221,6 +260,11 @@ void CameraWinRt::OnStart()
   {
     impl_->reader_token_ = impl_->reader_.FrameArrived({impl_.get(), &Impl::OnFrame});
     impl_->reader_.StartAsync().get();
+
+#if CHECK_EXPOSURE_FEATURES
+    impl_->CheckNewControlsSupported();
+#endif
+
     impl_->started_ = true;
   }
 }
@@ -281,8 +325,8 @@ std::vector<CameraInfo> CameraWinRt::Enumerate()
       continue;
     }
 
-    std::string deviceName = WideToString(curDevice.DisplayName().c_str());
-    std::string deviceId   = WideToString(curDevice.Id().c_str());
+    std::string deviceName = winrt::to_string(curDevice.DisplayName());
+    std::string deviceId   = winrt::to_string(curDevice.Id());
 
     /// If it's not a USB device, VidPid returns false and vid/pid remain 0.
     uint16_t vid = 0;
@@ -299,7 +343,6 @@ void CameraWinRt::OnSetFormat(const FormatInfo& info)
 {
   impl_->sources_ = impl_->mc_.FrameSources();
 
-  int idx = 0;
   for (const auto& curSource : impl_->sources_)
   {
     auto mediaFrameSource = curSource.Value();
@@ -308,20 +351,25 @@ void CameraWinRt::OnSetFormat(const FormatInfo& info)
     {
       // Skip non-Video formats.
       auto major = curFormat.MajorType();
-      // if (major != L"Video") continue;
-      if (idx == info.index)
-      {
-        // Set the format
-        mediaFrameSource.SetFormatAsync(curFormat).get();
-        impl_->reader_ =
-            impl_->mc_.CreateFrameReaderAsync(mediaFrameSource, MediaEncodingSubtypes::Bgra8())
-                .get();
-        return;
-      }
-      idx++;
+      if (major != L"Video") continue;
+
+      auto formatInfo = MediaFrameFormatToFormat(curFormat);
+
+      // Find something that matches. Unset entries are wildcards.
+      if ((formatInfo.width != info.width) && (info.width != 0)) continue;
+      if ((formatInfo.height != info.height) && (info.height != 0)) continue;
+      if ((formatInfo.channels != info.channels) && (info.channels != 0)) continue;
+      if ((formatInfo.format != info.format) && (!info.format.empty())) continue;
+
+      // Set the format
+      mediaFrameSource.SetFormatAsync(curFormat).get();
+      impl_->reader_ =
+          impl_->mc_.CreateFrameReaderAsync(mediaFrameSource, MediaEncodingSubtypes::Bgra8()).get();
+      return;
     }
   }
   ZBA_THROW("Could find requested format.", Result::ZBA_CAMERA_ERROR);
 }
 
 }  // namespace zebral
+#endif  // _WIN32

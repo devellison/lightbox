@@ -10,16 +10,37 @@
 
 namespace zebral
 {
+/// Static converter class to be used when consuming the library AND using OpenCV.
+/// When you receive a CameraFrame, and want to convert it to a cv::Mat.
+///
+/// #include "camera2cv.hpp"
+/// ...
+/// cv::Mat mat = zebral::Converter::Camera2Cv(cameraFrame);
+///
 class Converter
 {
  public:
-  static cv::Mat Camera2Cv(const CameraFrame& image)
+  /// Converts a CameraFrame object to a cv::Mat of the appropriate type.
+  /// NOTE: This is faster, but the data is dependent on the CameraFrame's
+  ///       lifespan.
+  static cv::Mat Camera2CvNoCopy(const CameraFrame& image)
   {
     return cv::Mat(image.height(), image.width(), CVTypeFromImage(image),
                    const_cast<void*>(reinterpret_cast<const void*>(image.data())));
   }
 
-  CameraFrame CvToCameraFrame(const cv::Mat& frame)
+  /// Converts a CameraFrame object to a cv::Mat of the appropriate type,
+  /// and makes a copy of the data
+  static cv::Mat Camera2Cv(const CameraFrame& image)
+  {
+    return cv::Mat(image.height(), image.width(), CVTypeFromImage(image),
+                   const_cast<void*>(reinterpret_cast<const void*>(image.data())))
+        .clone();
+  }
+
+  /// Converts a cv::Mat to a CameraFrame object of the appropriate type
+  /// This copies the data into the CameraFrame
+  static CameraFrame CvToCameraFrame(const cv::Mat& frame)
   {
     if (frame.empty()) return CameraFrame();
     bool is_signed = true;
@@ -51,6 +72,8 @@ class Converter
     return CameraFrame(frame.cols, frame.rows, frame.channels(),
                        static_cast<int>(frame.elemSize1()), is_signed, is_float, frame.data);
   }
+
+  /// Retrieves the appropriate OpenCV type from the CameraFrame.
   static int CVTypeFromImage(const CameraFrame& image)
   {
     int type_id = -1;
@@ -94,7 +117,9 @@ class Converter
   }
 
  private:
-  Converter()  = delete;
+  /// Static class, deleted constructor
+  Converter() = delete;
+  /// Static class, deleted destructor
   ~Converter() = delete;
 };
 }  // namespace zebral

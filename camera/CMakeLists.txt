@@ -42,7 +42,8 @@ if(MSVC)
   add_compile_options(/W4 /WX)
   set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib WindowsApp.lib)  
 else()
-  add_compile_options(-Wall -Wextra -pedantic -Werror)
+  add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
+  find_package(OpenCV REQUIRED)
 endif()
 
 # Add camera library
@@ -50,14 +51,14 @@ endif()
 set(SRC
     src/camera.cpp
     src/camera_winrt.cpp
+    src/camera_opencv.cpp
     src/camera_v4l2.cpp
     src/camera_manager.cpp
     src/camera_info.cpp
     src/param.cpp
     src/platform.cpp
     src/errors.cpp
-    src/log.cpp
-    src/winrt_utils.cpp
+    src/log.cpp    
 )
 
 set(INC
@@ -65,18 +66,18 @@ set(INC
     inc/camera_info.hpp
     inc/camera_winrt.hpp
     inc/camera_v4l2.hpp
+    inc/camera_opencv.hpp
     inc/camera.hpp
     inc/param.hpp
     inc/platform.hpp
     inc/errors.hpp
     inc/log.hpp
-    inc/winrt_utils.hpp
 )
 
 add_library(${PROJECT_NAME} ${SRC} ${INC})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_include_directories(${PROJECT_NAME} PUBLIC inc)
+target_include_directories(${PROJECT_NAME} PUBLIC inc ${OpenCV_INCLUDE_DIRS})
 
 target_link_libraries(
   ${PROJECT_NAME} PRIVATE ${EXTRA_LIBS} Threads::Threads

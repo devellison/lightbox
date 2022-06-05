@@ -67,35 +67,11 @@ std::string zba_local_time(ZBA_TSTAMP tp, int sec_precision)
     // precision?
     std::string fract_out = ss_sec.str().substr(1, sec_precision + 1);
     // add any trailing '0'
-    while (fract_out.length() < sec_precision + 1) fract_out += "0";
+    while (fract_out.length() < static_cast<size_t>(sec_precision + 1)) fract_out += "0";
 
     ss << fract_out;
   }
   return ss.str();
 }
-#if _WIN32
-std::string WideToString(const WCHAR* wide)
-{
-  // IIRC this is probably quite slow. If we need to use it often write a custom converter or find
-  // one.
-  DWORD strLength = WideCharToMultiByte(CP_UTF8, 0, wide, -1, 0, 0, 0, 0);
-  std::string value;
-  value.resize(strLength);
-  WideCharToMultiByte(CP_UTF8, 0, wide, -1, static_cast<LPSTR>(value.data()), strLength, 0, 0);
-  value.resize(strLength - 1);
-  return value;
-}
-
-winrt::hstring StringToWide(const std::string& str)
-{
-  DWORD strLength = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-  std::wstring value;
-  value.resize(strLength);
-  MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, static_cast<LPWSTR>(value.data()), strLength);
-  value.resize(strLength - 1);
-  winrt::hstring res(value.c_str());
-  return res;
-}
-#endif  //_WIN32
 
 }  // namespace zebral

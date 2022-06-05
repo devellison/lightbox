@@ -54,7 +54,10 @@ int main(int argc, char* argv[])
     {
       camera    = camMgr.Create(curCam);
       auto info = camera->GetCameraInfo();
-      camera->SetFormat(info.formats[0]);
+      if (info.formats.size())
+      {
+        camera->SetFormat(info.formats[0]);
+      }
     }
   }
 
