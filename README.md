@@ -19,7 +19,7 @@ and can be built as part of the lightbox project or separately - look in
       (current binary release didn't seem to have these, so yeah - gotta build it)
     - Doxygen, graphviz, cmake-format, clang-format
   - Linux:
-    - Currently using gcc 9
+    - Currently using ~gcc 9~ clang 11
     - Using OpenCV 4.2 from Ubuntu's distribution
   - Build tools and deps for both:
     - Doxygen, graphviz, cpack, cmake-format, clang-format
