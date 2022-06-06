@@ -5,7 +5,7 @@ More details TBA.
 It doesn't do much yet - base firmware in `./firmware` and the start of the camera
 library in `./camera` are all that's there.
 
-Firmware response to serial line commands. "help" for help.
+Firmware responds to serial line commands or a button. "help" for help.
 Camera can capture frames via WinRT on Windows, but it's still using OpenCV
 on Linux (to be replaced - most like w/V4L2 but TBD).
 
