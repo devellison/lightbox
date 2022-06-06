@@ -21,14 +21,6 @@
 
 #include <winrt/base.h>
 
-// Seems like some of the control features in the API aren't there yet, even on Windows 11?
-// If this is on, calls and checks to see if they're enabled and logs.
-#ifdef NDEBUG
-#define CHECK_EXPOSURE_FEATURES 0
-#else
-#define CHECK_EXPOSURE_FEATURES 1
-#endif
-
 // Required to gain access to software bitmap pixels directly.
 struct __declspec(uuid("5b0d3235-4dba-4d44-865e-8f1d0e4fd04d")) __declspec(novtable)
     IMemoryBufferByteAccess : ::IUnknown
@@ -78,7 +70,6 @@ class CameraWinRt::Impl
   IMapView<hstring, MediaFrameSource> sources_;  ///< FrameSources
   MediaFrameSource device_;                      ///< Chosen frame source after SetFormat
   MediaFrameReader reader_;                      ///< Reader once we've picked a source
-  ExposureControl exposure_;                     ///< Control for exposure of camera
   event_token reader_token_;                     ///< Callback token
   bool started_;                                 ///< True if started.
 };
@@ -157,11 +148,6 @@ void CameraWinRt::OnStart()
   {
     impl_->reader_token_ = impl_->reader_.FrameArrived({impl_.get(), &Impl::OnFrame});
     impl_->reader_.StartAsync().get();
-
-#if CHECK_EXPOSURE_FEATURES
-    impl_->CheckNewControlsSupported();
-#endif
-
     impl_->started_ = true;
   }
 }
@@ -282,7 +268,6 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
 CameraWinRt::Impl::Impl(CameraWinRt* parent)
     : parent_(*parent),
       reader_(nullptr),
-      exposure_(nullptr),
       started_(false),
       device_(nullptr)
 {
@@ -290,46 +275,11 @@ CameraWinRt::Impl::Impl(CameraWinRt* parent)
 
 void CameraWinRt::Impl::CheckNewControlsSupported()
 {
-  ZBA_LOG("Checking VideoDeviceController controls...");
-  ZBA_LOG(" ExposureControl %d", mc_.VideoDeviceController().ExposureControl().Supported());
-  ZBA_LOG(" ExposureCompensationControl %d",
-          mc_.VideoDeviceController().ExposureCompensationControl().Supported());
-  ZBA_LOG(" WhiteBalanceControl %d", mc_.VideoDeviceController().WhiteBalanceControl().Supported());
-  ZBA_LOG(" ExposurePriorityVideoControl %d",
-          mc_.VideoDeviceController().ExposurePriorityVideoControl().Supported());
-  ZBA_LOG(" FocusControl %d", mc_.VideoDeviceController().FocusControl().Supported());
-  ZBA_LOG(" FlashControl %d", mc_.VideoDeviceController().FlashControl().Supported());
-  ZBA_LOG(" ISO Speed Control %d", mc_.VideoDeviceController().IsoSpeedControl().Supported());
-  ZBA_LOG(" HDRVideoControl %d", mc_.VideoDeviceController().HdrVideoControl().Supported());
-  // Because one of them had to be different.
-  ZBA_LOG(" IRTorchControl %d", mc_.VideoDeviceController().InfraredTorchControl().IsSupported());
-
-  // Checking device
-  ZBA_LOG(" Checking device....");
-  ZBA_LOG(" ExposureCompensationControl %d",
-          device_.Controller().VideoDeviceController().ExposureCompensationControl().Supported());
-
-  ZBA_LOG(" WhiteBalanceControl %d",
-          device_.Controller().VideoDeviceController().WhiteBalanceControl().Supported());
-
-  ZBA_LOG(" ExposurePriorityVideoControl %d",
-          device_.Controller().VideoDeviceController().ExposurePriorityVideoControl().Supported());
-  ZBA_LOG(" FocusControl %d",
-          device_.Controller().VideoDeviceController().FocusControl().Supported());
-  ZBA_LOG(" FlashControl %d",
-          device_.Controller().VideoDeviceController().FlashControl().Supported());
-  ZBA_LOG(" ISO Speed Control %d",
-          device_.Controller().VideoDeviceController().IsoSpeedControl().Supported());
-  ZBA_LOG(" HDRVideoControl %d",
-          device_.Controller().VideoDeviceController().HdrVideoControl().Supported());
-  // Because one of them had to be different.
-  ZBA_LOG(" IRTorchControl %d",
-          device_.Controller().VideoDeviceController().InfraredTorchControl().IsSupported());
-
-  // mc_.VideoDeviceController().BacklightCompensation().TrySetAuto(true);
-  // mc_.VideoDeviceController().Brightness().TrySetAuto(true);
-  // mc_.VideoDeviceController().Contrast().TrySetAuto(true);
-  // mc_.VideoDeviceController().ExposureControl().SetAutoAsync(true).get();
+  /// Test function...
+  /// {TODO} Exposure controls and similar off VideoDeviceController() don't work.
+  /// What it looks like is that they're unimplemented, so we'll have to dig deeper.
+  /// Setting/Getting the KS properties directly appears to be how software that does this
+  /// gets it done, so we'll go there.
 }
 void CameraWinRt::Impl::OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
                                 const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&)
