@@ -53,138 +53,35 @@ using namespace Windows::Storage::Streams;
 
 namespace zebral
 {
+/// Utility function to convert Windows format to ours
+FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat);
+
 /// Fun implementation details.
 class CameraWinRt::Impl
 {
  public:
-  Impl(CameraWinRt* parent)
-      : parent_(*parent),
-        reader_(nullptr),
-        exposure_(nullptr),
-        started_(false),
-        device_(nullptr)
-  {
-  }
+  Impl(CameraWinRt* parent);
 
   /// {TODO} So.... these return false for my cameras on my system.
   /// SDK 10.0.19041.0, Windows 10 Home 10.0.19041.
   /// Some things seem to say that it's just not ready yet on Windows 11
   /// It seems like you need to go through older APIs currently, which is painful.
-  void CheckNewControlsSupported()
-  {
-    ZBA_LOG("Checking VideoDeviceController controls...");
-    ZBA_LOG(" ExposureControl %d", mc_.VideoDeviceController().ExposureControl().Supported());
-    ZBA_LOG(" ExposureCompensationControl %d",
-            mc_.VideoDeviceController().ExposureCompensationControl().Supported());
-    ZBA_LOG(" WhiteBalanceControl %d",
-            mc_.VideoDeviceController().WhiteBalanceControl().Supported());
-    ZBA_LOG(" ExposurePriorityVideoControl %d",
-            mc_.VideoDeviceController().ExposurePriorityVideoControl().Supported());
-    ZBA_LOG(" FocusControl %d", mc_.VideoDeviceController().FocusControl().Supported());
-    ZBA_LOG(" FlashControl %d", mc_.VideoDeviceController().FlashControl().Supported());
-    ZBA_LOG(" ISO Speed Control %d", mc_.VideoDeviceController().IsoSpeedControl().Supported());
-    ZBA_LOG(" HDRVideoControl %d", mc_.VideoDeviceController().HdrVideoControl().Supported());
-    // Because one of them had to be different.
-    ZBA_LOG(" IRTorchControl %d", mc_.VideoDeviceController().InfraredTorchControl().IsSupported());
-
-    // Checking device
-    ZBA_LOG(" Checking device....");
-    ZBA_LOG(" ExposureCompensationControl %d",
-            device_.Controller().VideoDeviceController().ExposureCompensationControl().Supported());
-
-    ZBA_LOG(" WhiteBalanceControl %d",
-            device_.Controller().VideoDeviceController().WhiteBalanceControl().Supported());
-
-    ZBA_LOG(
-        " ExposurePriorityVideoControl %d",
-        device_.Controller().VideoDeviceController().ExposurePriorityVideoControl().Supported());
-    ZBA_LOG(" FocusControl %d",
-            device_.Controller().VideoDeviceController().FocusControl().Supported());
-    ZBA_LOG(" FlashControl %d",
-            device_.Controller().VideoDeviceController().FlashControl().Supported());
-    ZBA_LOG(" ISO Speed Control %d",
-            device_.Controller().VideoDeviceController().IsoSpeedControl().Supported());
-    ZBA_LOG(" HDRVideoControl %d",
-            device_.Controller().VideoDeviceController().HdrVideoControl().Supported());
-    // Because one of them had to be different.
-    ZBA_LOG(" IRTorchControl %d",
-            device_.Controller().VideoDeviceController().InfraredTorchControl().IsSupported());
-
-    // mc_.VideoDeviceController().BacklightCompensation().TrySetAuto(true);
-    // mc_.VideoDeviceController().Brightness().TrySetAuto(true);
-    // mc_.VideoDeviceController().Contrast().TrySetAuto(true);
-    // mc_.VideoDeviceController().ExposureControl().SetAutoAsync(true).get();
-  }
+  void CheckNewControlsSupported();
 
   /// Frame callback from the frame reader.
   void OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
-               const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&)
-  {
-    if (auto frame = reader.TryAcquireLatestFrame())
-    {
-      auto bitmap        = frame.VideoMediaFrame().SoftwareBitmap();
-      auto format_if_set = parent_.GetFormat();
-      if (format_if_set)
-      {
-        auto format            = *format_if_set;
-        BitmapBuffer bmpBuffer = bitmap.LockBuffer(BitmapBufferAccessMode::Read);
-
-        auto plane_desc = bmpBuffer.GetPlaneDescription(0);
-
-        /// {TODO} Hardcoded bgra8, and doesn't account for padded stride.
-        int width             = plane_desc.Width;
-        int height            = plane_desc.Height;
-        int channels          = plane_desc.Stride / width;
-        int bytes_per_channel = 1;
-        bool is_signed        = false;
-        bool is_floating      = false;
-        CameraFrame cameraFrame(width, height, channels, bytes_per_channel, is_signed, is_floating);
-
-        IMemoryBufferReference ref = bmpBuffer.CreateReference();
-        {
-          auto interop = ref.as<IMemoryBufferByteAccess>();
-
-          uint8_t* dataPtr = nullptr;
-          uint32_t dataLen = 0;
-          check_hresult(interop->GetBuffer(&dataPtr, &dataLen));
-          memcpy(cameraFrame.data(), dataPtr, dataLen);
-        }
-        ref.Close();
-        bmpBuffer.Close();
-        parent_.OnFrameReceived(cameraFrame);
-      }
-      else
-      {
-        ZBA_LOG("Format not set.");
-      }
-    }
-    else
-    {
-      ZBA_LOG("Failed aquire latest.");
-    }
-  }
+               const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&);
 
   CameraWinRt& parent_;                          ///< CameraWinRT that owns this Impl
   MediaCapture mc_;                              ///< MediaCapture base object
   MediaCaptureInitializationSettings settings_;  ///< Settings for mc_
   IMapView<hstring, MediaFrameSource> sources_;  ///< FrameSources
+  MediaFrameSource device_;                      ///< Chosen frame source after SetFormat
   MediaFrameReader reader_;                      ///< Reader once we've picked a source
   ExposureControl exposure_;                     ///< Control for exposure of camera
   event_token reader_token_;                     ///< Callback token
   bool started_;                                 ///< True if started.
-  MediaFrameSource device_;
 };
-
-FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
-{
-  auto w         = curFormat.VideoFormat().Width();
-  auto h         = curFormat.VideoFormat().Height();
-  auto subType   = curFormat.Subtype();
-  auto frameRate = curFormat.FrameRate();
-  float fps =
-      static_cast<float>(frameRate.Numerator()) / static_cast<float>(frameRate.Denominator());
-  return FormatInfo(w, h, fps, 0, 0, 0, winrt::to_string(subType));
-}
 
 // CameraWin main class
 // COM interfaces and most of the code
@@ -369,6 +266,116 @@ void CameraWinRt::OnSetFormat(const FormatInfo& info)
     }
   }
   ZBA_THROW("Could find requested format.", Result::ZBA_CAMERA_ERROR);
+}
+
+FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
+{
+  auto w         = curFormat.VideoFormat().Width();
+  auto h         = curFormat.VideoFormat().Height();
+  auto subType   = curFormat.Subtype();
+  auto frameRate = curFormat.FrameRate();
+  float fps =
+      static_cast<float>(frameRate.Numerator()) / static_cast<float>(frameRate.Denominator());
+  return FormatInfo(w, h, fps, 0, 0, winrt::to_string(subType));
+}
+
+CameraWinRt::Impl::Impl(CameraWinRt* parent)
+    : parent_(*parent),
+      reader_(nullptr),
+      exposure_(nullptr),
+      started_(false),
+      device_(nullptr)
+{
+}
+
+void CameraWinRt::Impl::CheckNewControlsSupported()
+{
+  ZBA_LOG("Checking VideoDeviceController controls...");
+  ZBA_LOG(" ExposureControl %d", mc_.VideoDeviceController().ExposureControl().Supported());
+  ZBA_LOG(" ExposureCompensationControl %d",
+          mc_.VideoDeviceController().ExposureCompensationControl().Supported());
+  ZBA_LOG(" WhiteBalanceControl %d", mc_.VideoDeviceController().WhiteBalanceControl().Supported());
+  ZBA_LOG(" ExposurePriorityVideoControl %d",
+          mc_.VideoDeviceController().ExposurePriorityVideoControl().Supported());
+  ZBA_LOG(" FocusControl %d", mc_.VideoDeviceController().FocusControl().Supported());
+  ZBA_LOG(" FlashControl %d", mc_.VideoDeviceController().FlashControl().Supported());
+  ZBA_LOG(" ISO Speed Control %d", mc_.VideoDeviceController().IsoSpeedControl().Supported());
+  ZBA_LOG(" HDRVideoControl %d", mc_.VideoDeviceController().HdrVideoControl().Supported());
+  // Because one of them had to be different.
+  ZBA_LOG(" IRTorchControl %d", mc_.VideoDeviceController().InfraredTorchControl().IsSupported());
+
+  // Checking device
+  ZBA_LOG(" Checking device....");
+  ZBA_LOG(" ExposureCompensationControl %d",
+          device_.Controller().VideoDeviceController().ExposureCompensationControl().Supported());
+
+  ZBA_LOG(" WhiteBalanceControl %d",
+          device_.Controller().VideoDeviceController().WhiteBalanceControl().Supported());
+
+  ZBA_LOG(" ExposurePriorityVideoControl %d",
+          device_.Controller().VideoDeviceController().ExposurePriorityVideoControl().Supported());
+  ZBA_LOG(" FocusControl %d",
+          device_.Controller().VideoDeviceController().FocusControl().Supported());
+  ZBA_LOG(" FlashControl %d",
+          device_.Controller().VideoDeviceController().FlashControl().Supported());
+  ZBA_LOG(" ISO Speed Control %d",
+          device_.Controller().VideoDeviceController().IsoSpeedControl().Supported());
+  ZBA_LOG(" HDRVideoControl %d",
+          device_.Controller().VideoDeviceController().HdrVideoControl().Supported());
+  // Because one of them had to be different.
+  ZBA_LOG(" IRTorchControl %d",
+          device_.Controller().VideoDeviceController().InfraredTorchControl().IsSupported());
+
+  // mc_.VideoDeviceController().BacklightCompensation().TrySetAuto(true);
+  // mc_.VideoDeviceController().Brightness().TrySetAuto(true);
+  // mc_.VideoDeviceController().Contrast().TrySetAuto(true);
+  // mc_.VideoDeviceController().ExposureControl().SetAutoAsync(true).get();
+}
+void CameraWinRt::Impl::OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
+                                const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&)
+{
+  if (auto frame = reader.TryAcquireLatestFrame())
+  {
+    auto bitmap        = frame.VideoMediaFrame().SoftwareBitmap();
+    auto format_if_set = parent_.GetFormat();
+    if (format_if_set)
+    {
+      auto format            = *format_if_set;
+      BitmapBuffer bmpBuffer = bitmap.LockBuffer(BitmapBufferAccessMode::Read);
+
+      auto plane_desc = bmpBuffer.GetPlaneDescription(0);
+
+      /// {TODO} Hardcoded bgra8, and doesn't account for padded stride.
+      int width             = plane_desc.Width;
+      int height            = plane_desc.Height;
+      int channels          = plane_desc.Stride / width;
+      int bytes_per_channel = 1;
+      bool is_signed        = false;
+      bool is_floating      = false;
+      CameraFrame cameraFrame(width, height, channels, bytes_per_channel, is_signed, is_floating);
+
+      IMemoryBufferReference ref = bmpBuffer.CreateReference();
+      {
+        auto interop = ref.as<IMemoryBufferByteAccess>();
+
+        uint8_t* dataPtr = nullptr;
+        uint32_t dataLen = 0;
+        check_hresult(interop->GetBuffer(&dataPtr, &dataLen));
+        memcpy(cameraFrame.data(), dataPtr, dataLen);
+      }
+      ref.Close();
+      bmpBuffer.Close();
+      parent_.OnFrameReceived(cameraFrame);
+    }
+    else
+    {
+      ZBA_LOG("Format not set.");
+    }
+  }
+  else
+  {
+    ZBA_LOG("Failed aquire latest.");
+  }
 }
 
 }  // namespace zebral

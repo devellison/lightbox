@@ -3,6 +3,8 @@
 
 namespace zebral
 {
+/// Placeholder to control lightbox via USB serial.
+/// Camera is under more active development :)
 class Lightbox
 {
  public:

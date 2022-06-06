@@ -2,9 +2,9 @@
 /// Implementation of camera parameters
 
 #include "param.hpp"
+#include <cfloat>
 #include "errors.hpp"
 #include "log.hpp"
-#include <cfloat>
 
 namespace zebral
 {

@@ -12,7 +12,9 @@ find_package(OpenCV REQUIRED)
 set(SRC src/lightbox.cpp src/main.cpp)
 set(INC inc/lightbox.hpp)
 add_executable(${PROJECT_NAME} ${SRC} ${INC})
-target_include_directories(${PROJECT_NAME} PUBLIC inc zebralcam::zebralcam ${OpenCV_INCLUDE_DIRS})
+target_include_directories(
+  ${PROJECT_NAME} PUBLIC inc zebralcam::zebralcam ${OpenCV_INCLUDE_DIRS}
+)
 target_compile_definitions(
   ${PROJECT_NAME} PUBLIC LIGHTBOX_VERSION="${PROJECT_VERSION}"
 )

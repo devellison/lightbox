@@ -1,5 +1,5 @@
 // To be deprecated
-#ifndef _WIN32
+#if defined(__linux__)
 
 /// \file camera_opencv.hpp
 /// OpenCV camera - this is really for testing and debugging, should eventually be deprecated and
@@ -22,11 +22,15 @@ class CameraOpenCV : public Camera
  protected:
   /// Loops until exiting_ is true grabbing frames
   void CaptureThread();
+
   /// Creates the capture_ object before thread is started
   void OnStart() override;
+
   /// Called once the thread stops to clean up the capture_ object
   void OnStop() override;
 
+  /// No SetFormat is current supported - it'll work on some cameras though via properties,
+  /// So could be useful? But OpenCV is what I'm trying to replace for an API, so...
   void OnSetFormat(const FormatInfo&) override {}
 
   class Impl;
@@ -34,4 +38,4 @@ class CameraOpenCV : public Camera
 };
 }  // namespace zebral
 #endif  // LIGHTBOX_CAMERA_CAMERA_OPENCV_HPP_
-#endif  // _WIN32
+#endif  // (__linux__)

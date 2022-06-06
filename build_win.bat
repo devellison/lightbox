@@ -24,6 +24,7 @@ ECHO   build_win.bat package
 EXIT /b 4
 
 :package
+SET buildtype=Release
 SET /A package=1
 SET /A test=1
 SET /A docs=1
@@ -50,7 +51,7 @@ pushd "%~dp0"
 
 REM cmake-gui -S . -B build || GOTO gen_error
 cmake -S . -B build || GOTO gen_error
-cmake --build build --config %buildtype% -j8 || GOTO build_error
+cmake --build build --config %buildtype% -j12 || GOTO build_error
 IF %docs%==1 cmake --build build --config %buildtype% -t lightbox_docs || GOTO docs_error
 IF %test%==1 cmake --build build --config %buildtype% -t RUN_TESTS || GOTO test_error
 IF %package%==1 cmake --build build --config %buildtype% -t package || GOTO package_error

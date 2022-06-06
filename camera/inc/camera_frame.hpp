@@ -57,60 +57,70 @@ class CameraFrame
   }
 
   /// Returns true if the data buffer has no data.
+  /// \return true if frame is empty
   bool empty() const
   {
     return data_.size() == 0;
   }
 
-  /// Pixel width of the image
+  /// Width of the image (pixels)
+  /// \return int image width in pixels
   int width() const
   {
     return width_;
   }
 
-  /// Pixel height of the image
+  /// Height of the image (pixels)
+  /// \return int image height in pixels
   int height() const
   {
     return height_;
   }
 
   /// Number of channels (e.g. RGBA = 4)
+  /// \return int number of channels
   int channels() const
   {
     return channels_;
   }
 
   /// Bytes per pixel per channel, so in RGBA with 8-bits per channel per pixel, is 1
+  /// \return int - bytes per pixel per channel
   int bytes_per_channel() const
   {
     return bytes_per_channel_;
   }
 
   /// Is the data a signed type?
-  int is_signed() const
+  /// \return true if is signed
+  bool is_signed() const
   {
     return is_signed_;
   }
 
   /// Is the data a floating type?
+  /// \return - true if is floating point
   bool is_floating() const
   {
     return is_floating_;
   }
 
   /// Size of image data in bytes
+  /// \return size_t - size of data in bytes
   size_t data_size() const
   {
     return data_.size();
   }
 
-  /// Pointer to start of image data
+  /// Const Pointer to start of image data
+  /// \return const uint8_t* ptr to raw image data
   const uint8_t* data() const
   {
     return data_.data();
   }
 
   /// Pointer to start of image data
+  /// \return uint8_t* ptr to raw image data
   uint8_t* data()
   {
     return data_.data();

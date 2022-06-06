@@ -21,7 +21,6 @@ if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
   set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
   set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
   set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
-  set(CPACK_SOURCE_IGNORE_FILES /.git /.*build.* /\\\\.DS_Store)
   include(CPack)
 endif()
 
@@ -40,7 +39,9 @@ enable_testing()
 # main().
 if(MSVC)
   add_compile_options(/W4 /WX)
-  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib WindowsApp.lib)  
+  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
+                 WindowsApp.lib
+  )
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
   find_package(OpenCV REQUIRED)
@@ -58,7 +59,7 @@ set(SRC
     src/param.cpp
     src/platform.cpp
     src/errors.cpp
-    src/log.cpp    
+    src/log.cpp
 )
 
 set(INC
@@ -79,9 +80,7 @@ add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME} PUBLIC inc ${OpenCV_INCLUDE_DIRS})
 
-target_link_libraries(
-  ${PROJECT_NAME} PRIVATE ${EXTRA_LIBS} Threads::Threads
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTRA_LIBS} Threads::Threads)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
@@ -113,14 +112,21 @@ set(DOXYGEN_JAVADOC_AUTOBRIEF YES)
 set(DOXYGEN_MULTILINE_CPP_IS_BRIEF YES)
 set(DOXYGEN_CLASS_GRAPH YES)
 set(DOXYGEN_COLLABORATION_GRAPH YES)
+set(DOXYGEN_EXCLUDE */build/* */_deps/*)
+set(DOXYGEN_WARN_LOGFILE ${CMAKE_SOURCE_DIR}/undocumented.txt)
+set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
 set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_docs)
-doxygen_add_docs(${PROJECT_NAME}_docs README.md ${SRC} ${INC} USE_STAMP_FILE ALL COMMENT "Generating camera docs")
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_docs DESTINATION ${CMAKE_INSTALL_INFODIR})
+doxygen_add_docs(
+  ${PROJECT_NAME}_docs README.md ${SRC} ${INC} USE_STAMP_FILE ALL
+  COMMENT "Generating camera docs"
+)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_docs
+        DESTINATION ${CMAKE_INSTALL_INFODIR}
+)
 
 # Binary and includes...
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${INC} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
 
 # Export a cmake file for package finding
 export(

@@ -2,5 +2,6 @@ build
 out
 install
 undocumented.txt
+CMakeSettings.json
 .vscode
 .vs

@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.15)
 
 if(MSVC)
   add_compile_options(/W4 /WX)
-  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib WindowsApp.lib)  
+  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
+                 WindowsApp.lib
+  )
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
   find_package(OpenCV REQUIRED)

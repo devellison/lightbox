@@ -73,7 +73,7 @@ void zba_log(ZBA_LL level, const char* loc, const char* msg, ...);
 /// \tparam T - class type to log
 /// \param level - log level
 /// \param loc - ZBA_LOCINFO string for source location
-/// \param T - class instance to log
+/// \param msg - class instance to log
 template <class T>
 void zba_logss(ZBA_LL level, const char* loc, T msg)
 {

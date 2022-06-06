@@ -16,15 +16,20 @@ typedef void* OSHANDLE;
 /// Video format information.
 struct FormatInfo
 {
-  /// Format information
+  /// Format information constructor
+  /// \param fmt_width Width in pixels
+  /// \param fmt_height Height in pixels
+  /// \param fmt_fps Expected frames per second
+  /// \param fmt_channels Num channels
+  /// \param fmt_bytespppc Bytes per pixel per channel
+  /// \param fmt_format Format string (FourCC usually)
   FormatInfo(int fmt_width = 0, int fmt_height = 0, float fmt_fps = 0.0f, int fmt_channels = 0,
-             int fmt_bytespppc = 0, int fmt_stride = 0, const std::string& fmt_format = "")
+             int fmt_bytespppc = 0, const std::string& fmt_format = "")
       : width(fmt_width),
         height(fmt_height),
         fps(fmt_fps),
         channels(fmt_channels),
         bytespppc(fmt_bytespppc),
-        stride(fmt_stride),
         format(fmt_format)
   {
   }
@@ -34,8 +39,7 @@ struct FormatInfo
   float fps;           ///< Expected frames per second
   int channels;        ///< Num channels
   int bytespppc;       ///< Bytes per pixel per channel
-  int stride;          ///< Stride (bytes per row)
-  std::string format;  ///< Format string (FourC usually)
+  std::string format;  ///< Format string (FourCC usually)
 };
 
 /// Information about a camera gathered from enumeration via CameraMgr
@@ -45,6 +49,13 @@ struct CameraInfo
   static constexpr int NO_FORMAT_SELECTED = -1;
 
   /// CameraInfo ctor
+  /// \param cam_idx Index of camera
+  /// \param cam_api API (OpenCV only / deprecated)
+  /// \param cam_name Name of camera
+  /// \param cam_path Path / System identifier for camera
+  /// \param os_handle OS-specific value (deprecated)
+  /// \param vid If a USB device, then the VendorID. Else 0
+  /// \param pid If a USB device, then the ProductID. Else 0
   CameraInfo(int cam_idx, int cam_api, const std::string& cam_name, const std::string& cam_path,
              OSHANDLE os_handle, uint16_t vid = 0, uint16_t pid = 0)
       : index(cam_idx),
@@ -59,6 +70,7 @@ struct CameraInfo
   }
 
   /// Add a format to the camera info
+  /// \param format - FormatInfo to add to available formats for the camera.
   void AddFormat(const FormatInfo& format)
   {
     formats.emplace_back(format);

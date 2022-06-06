@@ -1,4 +1,4 @@
-/// \file zba_camera.hpp
+/// \file zebral_camera.hpp
 /// Interface header for the ZeBrAl camera library.
 #ifndef ZBA_CAMERA_HPP_
 #define ZBA_CAMERA_HPP_
