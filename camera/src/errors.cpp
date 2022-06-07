@@ -1,9 +1,5 @@
 #include "errors.hpp"
 
-#if _WIN32
-#include <windows.h>
-#endif
-
 namespace zebral
 {
 uint32_t to_unsigned(Result result)
@@ -34,7 +30,14 @@ std::string to_string(Result result)
   return ss.str();
 }
 
-#if _WIN32
+// Without this, we should be largely old winapi free...
+// But in testing it's annoying if running it terminates without a useful message.
+#ifndef CATCH_UNHANDLED_SEH
+#define CATCH_UNHANDLED_SEH 0
+#endif
+
+#if CATCH_UNHANDLED_SEH
+#include <windows.h>
 // Windows SEH handler
 LONG WINAPI WinSehHandler(PEXCEPTION_POINTERS pExceptionInfo)
 {
@@ -43,14 +46,14 @@ LONG WINAPI WinSehHandler(PEXCEPTION_POINTERS pExceptionInfo)
             << pExceptionInfo->ExceptionRecord->ExceptionCode << std::endl;
   std::abort();
 }
-#endif  //_WIN32
+#endif  // CATCH_UNHANDLED_SEH
 
 // Right now just sorting exceptions a little because the Windows runtime wasn't printing
 // anything on unhandled throws or other exceptions, just exiting silently.
 // Later this could log troubleshooting information.
 void SetUnhandled()
 {
-#if _WIN32
+#if CATCH_UNHANDLED_SEH
   SetUnhandledExceptionFilter(WinSehHandler);
 #endif
   // Handle c++ errors and exit

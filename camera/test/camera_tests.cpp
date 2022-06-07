@@ -5,6 +5,7 @@
 #include "errors.hpp"
 #include "gtest/gtest.h"
 #include "log.hpp"
+#include "param.hpp"
 #include "platform.hpp"
 
 using namespace zebral;
@@ -103,6 +104,93 @@ TEST(CameraTests, CameraSanity)
     //-----
     ++idx;
   }
+}
+
+double IntToUnit(int value, int minVal, int maxVal)
+{
+  if (maxVal == minVal)
+  {
+    ZBA_THROW("Invalid range", Result::ZBA_INVALID_RANGE);
+  }
+  return static_cast<double>((value - minVal)) / static_cast<double>(maxVal - minVal);
+}
+
+int UnitToInt(double scaled, int minVal, int maxVal)
+{
+  return static_cast<int>(std::round((scaled * (maxVal - minVal) + minVal)));
+}
+
+class ChangeWatch
+{
+ public:
+  ChangeWatch() : deviceChanges(0), guiChanges(0) {}
+
+  void OnVolumeChangedGUI(Param* param, bool raw_set)
+  {
+    auto p = dynamic_cast<ParamRanged<int, double>*>(param);
+    if (p && !raw_set)
+    {
+      ZBA_LOG("Volume changed - %d (%f)", p->get(), p->getScaled());
+      guiChanges++;
+    }
+  }
+
+  void OnVolumeChangedDevice(Param* param, bool raw_set)
+  {
+    auto p = dynamic_cast<ParamRanged<int, double>*>(param);
+    if (p && (raw_set))
+    {
+      ZBA_LOG("Volume changed (device) - %d (%f)", p->get(), p->getScaled());
+      deviceChanges++;
+    }
+  }
+
+  int deviceChanges;
+  int guiChanges;
+};
+
+TEST(CameraTests, Params)
+{
+  SubscriberList callbacks;
+  ChangeWatch watch;
+  ParamCb guiCb    = std::bind(&ChangeWatch::OnVolumeChangedGUI, &watch, std::placeholders::_1,
+                            std::placeholders::_2);
+  ParamCb deviceCb = std::bind(&ChangeWatch::OnVolumeChangedDevice, &watch, std::placeholders::_1,
+                               std::placeholders::_2);
+  ParamChangedCb guicallback{"Gui", guiCb};
+  ParamChangedCb devicecallback{"Device", deviceCb};
+  callbacks.insert(guicallback);
+  callbacks.insert(devicecallback);
+  ParamRanged<int, double> volume("Volume", callbacks, 25, 50, 0, 100, IntToUnit, UnitToInt);
+  ASSERT_FALSE(volume.set(10));
+  ASSERT_TRUE(watch.deviceChanges == 1);
+  ASSERT_TRUE(watch.guiChanges == 0);
+  ASSERT_TRUE(volume.get() == 10);
+  ASSERT_FALSE(volume.set(100));
+  ASSERT_TRUE(watch.deviceChanges == 2);
+  ASSERT_TRUE(volume.get() == 100);
+
+  ASSERT_TRUE(volume.set(150));
+  ASSERT_TRUE(volume.get() == 100);
+  ASSERT_FALSE(volume.setScaled(0));
+
+  // Not 3 because it didn't change when 150 got clamped,
+  // because it was already at 100.
+  ASSERT_TRUE(watch.deviceChanges == 2);
+
+  ASSERT_TRUE(watch.guiChanges == 1);
+  ASSERT_TRUE(volume.get() == 0);
+  ASSERT_FALSE(volume.setScaled(0.5));
+  ASSERT_TRUE(volume.get() == 50);
+  ASSERT_FALSE(volume.setScaled(0.9));
+  ASSERT_TRUE(volume.get() == 90);
+  ASSERT_FALSE(volume.setScaled(1.0));
+  ASSERT_TRUE(volume.get() == 100);
+
+  ASSERT_TRUE(volume.setScaled(1.5));
+  ASSERT_TRUE(volume.get() == 100);
+  ASSERT_TRUE(watch.guiChanges == 5);
+  ASSERT_TRUE(watch.deviceChanges == 2);
 }
 
 int main(int argc, char** argv)

@@ -36,6 +36,9 @@ class CameraOpenCV : public Camera
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
+/// Make CameraPlatform refer to CameraOpenCV
+typedef CameraOpenCV CameraPlatform;
+
 }  // namespace zebral
 #endif  // LIGHTBOX_CAMERA_CAMERA_OPENCV_HPP_
 #endif  // (__linux__)

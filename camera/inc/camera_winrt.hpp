@@ -42,6 +42,8 @@ class CameraWinRt : public Camera
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
+/// Make CameraPlatform refer to CameraWinRt
+typedef CameraWinRt CameraPlatform;
 }  // namespace zebral
 #endif  // LIGHTBOX_CAMERA_CAMERA_WINRT_HPP_
 #endif  // _WIN32

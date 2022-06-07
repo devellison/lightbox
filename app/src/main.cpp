@@ -12,10 +12,6 @@
 // This should replace all of the above, mostly.
 #include "zebral_camera.hpp"
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 using namespace zebral;
 
 void printHelp()

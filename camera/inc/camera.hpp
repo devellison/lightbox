@@ -3,7 +3,6 @@
 #ifndef LIGHTBOX_CAMERA_CAMERA_HPP_
 #define LIGHTBOX_CAMERA_CAMERA_HPP_
 
-#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <functional>

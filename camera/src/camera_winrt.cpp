@@ -54,10 +54,6 @@ class CameraWinRt::Impl
  public:
   Impl(CameraWinRt* parent);
 
-  /// {TODO} So.... these return false for my cameras on my system.
-  /// SDK 10.0.19041.0, Windows 10 Home 10.0.19041.
-  /// Some things seem to say that it's just not ready yet on Windows 11
-  /// It seems like you need to go through older APIs currently, which is painful.
   void CheckNewControlsSupported();
 
   /// Frame callback from the frame reader.
@@ -280,6 +276,7 @@ void CameraWinRt::Impl::CheckNewControlsSupported()
   /// What it looks like is that they're unimplemented, so we'll have to dig deeper.
   /// Setting/Getting the KS properties directly appears to be how software that does this
   /// gets it done, so we'll go there.
+  /// mc_.VideoDeviceController().GetDeviceProperty()
 }
 void CameraWinRt::Impl::OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
                                 const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&)

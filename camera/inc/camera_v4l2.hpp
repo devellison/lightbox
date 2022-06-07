@@ -24,7 +24,8 @@ class CameraV4L2 : public Camera
   /// Called once the thread stops to clean up the capture_ object
   void OnStop() override;
 };
-
+/// Make CameraPlatform refer to CameraV4L2
+typedef CameraV4L2 CameraPlatform;
 }  // namespace zebral
 
 #endif  // __linux__

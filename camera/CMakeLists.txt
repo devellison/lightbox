@@ -56,7 +56,6 @@ set(SRC
     src/camera_v4l2.cpp
     src/camera_manager.cpp
     src/camera_info.cpp
-    src/param.cpp
     src/platform.cpp
     src/errors.cpp
     src/log.cpp
