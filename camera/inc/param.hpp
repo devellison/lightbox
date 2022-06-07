@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <utility>
+#include <cmath>
 #include "platform.hpp"
 
 namespace zebral
@@ -103,7 +104,7 @@ class ParamVal : public Param
   /// \returns T - returns the raw value
   T get() const
   {
-    std::lock_guard<std::recursive_mutex> lock(val_mutex_);
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
     return value_;
   }
 
@@ -116,7 +117,7 @@ class ParamVal : public Param
   {
     bool changed = false;
     {
-      std::lock_guard<std::recursive_mutex> lock(val_mutex_);
+      std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
       changed = (value_ != raw);
       value_  = raw;
     }
@@ -131,7 +132,7 @@ class ParamVal : public Param
 
   void OnChanged(bool from_raw)
   {
-    std::lock_guard<std::recursive_mutex> lock(val_mutex_);
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
     for (const auto& callback : subscribers_)
     {
       callback.second(this, from_raw);
@@ -159,7 +160,7 @@ class ParamRanged : public ParamVal<RawType>
   /// \param def - default value
   ParamRanged(const std::string& name, const SubscriberList& callbacks, RawType value, RawType def,
               RawType minVal, RawType maxVal, RawToScaledFunc r2sfunc, ScaledToRawFunc s2rfunc)
-      : ParamVal(name, callbacks, value, def),
+      : ParamVal<RawType>(name, callbacks, value, def),
         minVal_(minVal),
         maxVal_(maxVal),
         ToScaled_(r2sfunc),
@@ -176,9 +177,9 @@ class ParamRanged : public ParamVal<RawType>
   {
     bool clamped = false;
     {
-      std::lock_guard<std::recursive_mutex> lock(val_mutex_);
+      std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
       clamped = (raw < minVal_) || (raw > maxVal_);
-      ParamVal::set(std::clamp<RawType>(raw, minVal_, maxVal_));
+      ParamVal<RawType>::set(std::clamp<RawType>(raw, minVal_, maxVal_));
     }
     return clamped;
   }
@@ -187,8 +188,8 @@ class ParamRanged : public ParamVal<RawType>
   /// \returns ScaledType - scaled value
   ScaledType getScaled() const
   {
-    std::lock_guard<std::recursive_mutex> lock(val_mutex_);
-    return ToScaled_(value_, minVal_, maxVal_);
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    return ToScaled_(ParamVal<RawType>::value_, minVal_, maxVal_);
   }
 
   /// Sets the value from a scaled value.
@@ -199,13 +200,13 @@ class ParamRanged : public ParamVal<RawType>
     bool changed = false;
     bool clamped = false;
     {
-      std::lock_guard<std::recursive_mutex> lock(val_mutex_);
+      std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
       RawType raw = ToRaw_(scaled, minVal_, maxVal_);
-      changed     = (value_ != raw);
+      changed     = (ParamVal<RawType>::value_ != raw);
       clamped     = (raw < minVal_) || (raw > maxVal_);
-      value_      = std::clamp<RawType>(raw, minVal_, maxVal_);
+      ParamVal<RawType>::value_      = std::clamp<RawType>(raw, minVal_, maxVal_);
     }
-    if (changed) OnChanged(false);
+    if (changed) ParamVal<RawType>::OnChanged(false);
     return clamped;
   }
 
@@ -213,8 +214,8 @@ class ParamRanged : public ParamVal<RawType>
   RawType minVal_;  ///< Minimum raw value for the param
   RawType maxVal_;  ///< Maximum raw value for the param
 
-  ScaledToRawFunc ToRaw_;     ///< Function to convert a scaled value to a raw (gui to device)
   RawToScaledFunc ToScaled_;  ///< Function to convert a raw value to scaled (device to gui)
+  ScaledToRawFunc ToRaw_;     ///< Function to convert a scaled value to a raw (gui to device)
 };
 
 }  // namespace zebral

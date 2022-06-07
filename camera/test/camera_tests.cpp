@@ -1,4 +1,5 @@
 #include <atomic>
+#include <cmath>
 #include "camera_manager.hpp"
 #include "camera_opencv.hpp"
 #include "camera_winrt.hpp"
