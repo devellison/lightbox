@@ -88,7 +88,7 @@ doxygen_add_docs(
   ${CMAKE_CURRENT_SOURCE_DIR}/camera/src
   ${CMAKE_CURRENT_SOURCE_DIR}/camera/inc
   ${CMAKE_CURRENT_SOURCE_DIR}/firmware/
-  ALL
+  # ALL
   COMMENT "Generating lightbox docs"
 )
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_docs
