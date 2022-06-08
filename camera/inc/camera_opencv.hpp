@@ -1,9 +1,10 @@
-// To be deprecated
-#if defined(__linux__)
-
 /// \file camera_opencv.hpp
 /// OpenCV camera - this is really for testing and debugging, should eventually be deprecated and
 /// removed.
+
+// To be deprecated
+#if defined(__linux__)
+
 #ifndef LIGHTBOX_CAMERA_CAMERA_OPENCV_HPP_
 #define LIGHTBOX_CAMERA_CAMERA_OPENCV_HPP_
 #include "camera.hpp"

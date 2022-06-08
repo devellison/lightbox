@@ -56,15 +56,17 @@ struct CameraInfo
   /// \param os_handle OS-specific value (deprecated)
   /// \param vid If a USB device, then the VendorID. Else 0
   /// \param pid If a USB device, then the ProductID. Else 0
-  CameraInfo(int cam_idx, int cam_api, const std::string& cam_name, const std::string& cam_path,
-             OSHANDLE os_handle, uint16_t vid = 0, uint16_t pid = 0)
+  CameraInfo(int cam_idx, int cam_api, const std::string& cam_name, const std::string& cam_bus,
+             const std::string& cam_path, const std::string& cam_driver, uint16_t cam_vid = 0,
+             uint16_t cam_pid = 0)
       : index(cam_idx),
         api(cam_api),
         name(cam_name),
+        bus(cam_bus),
         path(cam_path),
-        handle(os_handle),
-        vid(vid),
-        pid(pid),
+        driver(cam_driver),
+        vid(cam_vid),
+        pid(cam_pid),
         selected_format(NO_FORMAT_SELECTED)
   {
   }
@@ -76,13 +78,14 @@ struct CameraInfo
     formats.emplace_back(format);
   }
 
-  int index;         ///< Index (OpenCV and Win DSHOW)
-  int api;           ///< API (OpenCV)
-  std::string name;  ///< Device name (Win DSHOW)
-  std::string path;  ///< Device path (Win DSHOW)
-  OSHANDLE handle;   ///< IMFActivate* for the device on Win
-  uint16_t vid;      ///< Vendor ID (USB) if available. 0 otherwise.
-  uint16_t pid;      ///< Product ID (USB) if available. 0 otherwise.
+  int index;           ///< Index (All, but only really important in opencv)
+  int api;             ///< API (OpenCV - may deprecate)
+  std::string name;    ///< Friendly Device name (WinRt/V4l2)
+  std::string bus;     ///< Device path (WinRt)
+  std::string path;    ///< File path (V4L2 only - e.g. /dev/video0)
+  std::string driver;  ///< Driver path (V4L2 only)
+  uint16_t vid;        ///< Vendor ID (USB) if available. 0 otherwise.
+  uint16_t pid;        ///< Product ID (USB) if available. 0 otherwise.
 
   std::vector<FormatInfo> formats;  ///< Formats available
   int selected_format;  ///< index into formats of selected one, or NO_FORMAT_SELECTED for none.

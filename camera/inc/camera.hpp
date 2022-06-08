@@ -52,9 +52,9 @@ class Camera
   virtual void Stop();
 
   /// Get the next frame. Waits until a new one comes in.
-  /// \param timeout_ms - length of time to wait for a frame
+  /// \param timeout_ms - length of time to wait for a frame (milliseconds)
   /// \returns std::optional<CameraFrame> - camera frame or empty on timeout/empty frame.
-  virtual std::optional<CameraFrame> GetNewFrame(size_t timeout_ms = 1000);
+  virtual std::optional<CameraFrame> GetNewFrame(size_t timeout_ms = 5000);
 
   /// Gets the last frame (or nothing if no non-empty frames have been read)
   /// \return std::optional<CameraFrame> - last frame or empty if none.

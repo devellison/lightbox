@@ -82,7 +82,7 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
   for (auto curDevice : devices)
   {
     std::string deviceId = winrt::to_string(curDevice.Id());
-    if (deviceId == info_.path)
+    if (deviceId == info_.bus)
     {
       impl_->settings_.SourceGroup(curDevice);
       impl_->settings_.SharingMode(MediaCaptureSharingMode::ExclusiveControl);
@@ -158,16 +158,16 @@ void CameraWinRt::OnStop()
   }
 }
 
-bool CameraWinRt::VidPidFromPath(const std::string& devPath, uint16_t& vid, uint16_t& pid)
+bool CameraWinRt::VidPidFromBusPath(const std::string& busPath, uint16_t& vid, uint16_t& pid)
 {
-  if (devPath.empty()) return false;
+  if (busPath.empty()) return false;
 
   // MediaFoundations returns this in lowercase, C++/WinRT returns it in uppercase.
   static const std::regex vidPidRe("usb#vid_([0-9a-z]{4})&pid_([0-9a-z]{4})",
                                    std::regex_constants::ECMAScript | std::regex_constants::icase);
 
   std::smatch matches;
-  if (std::regex_search(devPath, matches, vidPidRe))
+  if (std::regex_search(busPath, matches, vidPidRe))
   {
     if (matches.size() == 3)
     {
@@ -205,15 +205,19 @@ std::vector<CameraInfo> CameraWinRt::Enumerate()
     }
 
     std::string deviceName = winrt::to_string(curDevice.DisplayName());
-    std::string deviceId   = winrt::to_string(curDevice.Id());
+    std::string bus_path   = winrt::to_string(curDevice.Id());
 
-    /// If it's not a USB device, VidPid returns false and vid/pid remain 0.
+    // These two are empty currently.
+    std::string path;
+    std::string driver;
+
+    // If it's not a USB device, VidPid returns false and vid/pid remain 0.
     uint16_t vid = 0;
     uint16_t pid = 0;
-    VidPidFromPath(deviceId, vid, pid);
+    VidPidFromBusPath(bus_path, vid, pid);
 
     int index = static_cast<int>(cameras.size());
-    cameras.emplace_back(index, 0, deviceName, deviceId, nullptr, vid, pid);
+    cameras.emplace_back(index, 0, deviceName, bus_path, path, driver, vid, pid);
   }
   return cameras;
 }

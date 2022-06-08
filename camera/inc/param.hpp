@@ -3,30 +3,40 @@
 #ifndef LIGHTBOX_CAMERA_PARAM_HPP_
 #define LIGHTBOX_CAMERA_PARAM_HPP_
 
+#include <cmath>
 #include <functional>
 #include <limits>
 #include <mutex>
 #include <set>
 #include <string>
 #include <utility>
-#include <cmath>
 #include "platform.hpp"
 
 namespace zebral
 {
 class Param;
+/// Callback function for parameter changes
+/// \param param - parameter that changed
+/// \param raw_set - true if the value changed from raw value being set.
 typedef std::function<void(Param* param, bool raw_set)> ParamCb;
+
+/// Named callbacks (for erasing/sorting/debugging)
 typedef std::pair<std::string, ParamCb> ParamChangedCb;
 
+/// Compare function for paramer callback functions
 struct CompareSubscribers
 {
+  /// \param p1 - first named callback function
+  /// \param p2 - second named callback function
+  /// \returns true if p1 < p2 (using the name identifiers)
   bool operator()(const ParamChangedCb& p1, const ParamChangedCb& p2) const noexcept
   {
     return p1.first < p2.first;
   }
 };
 
-typedef std::set<ParamChangedCb, CompareSubscribers> SubscriberList;
+/// Set of parameter subscribers that receive notifications when the parameters are changed.
+typedef std::set<ParamChangedCb, CompareSubscribers> ParamSubscribers;
 
 /// OnParamChanged callback
 /// \param param - reference to parameter that changed
@@ -51,7 +61,7 @@ class Param
   /// Param constructor
   /// \param name - name of parameter
   /// \param callbacks - list of callbacks to subscribe to (defaults empty)
-  Param(const std::string& name, const SubscriberList& callbacks = SubscriberList())
+  Param(const std::string& name, const ParamSubscribers& callbacks = ParamSubscribers())
       : name_(name),
         subscribers_(callbacks.begin(), callbacks.end())
   {
@@ -59,18 +69,28 @@ class Param
 
   virtual ~Param() {}
 
+  /// Subscribe to notifications when the parameter changes
+  /// \param cb - callback definition
   void Subscribe(const ParamChangedCb& cb)
   {
     std::lock_guard<std::recursive_mutex> lock(val_mutex_);
+    // I don't expect will want to register on top of others...
+    // {TODO} decide if this is allowed, add a return code, or
+    // a normal throw.
+    ZBA_ASSERT(subscribers_.count(cb) > 0, "Already registered");
     subscribers_.insert(cb);
   }
+
+  /// Unsubscribe from notifications when the parameter changes
+  /// \param cb - callback definition
   void Unsubscribe(const ParamChangedCb& cb)
   {
     std::lock_guard<std::recursive_mutex> lock(val_mutex_);
-
     subscribers_.erase(cb);
   }
 
+  /// Retrieves the parameter name
+  /// \returns std::string
   std::string name() const
   {
     return name_;
@@ -79,11 +99,11 @@ class Param
  protected:
   std::string name_;                        ///< Name of the parameter
   mutable std::recursive_mutex val_mutex_;  ///< value / subscriber lock
-  SubscriberList subscribers_;              ///< Notification callbacks
+  ParamSubscribers subscribers_;            ///< Notification callbacks
 };
 
 /// Param with a value that can be set/retrieved and default value
-template <class T>
+template <class RawType>
 class ParamVal : public Param
 {
  public:
@@ -92,17 +112,19 @@ class ParamVal : public Param
   /// \param callbacks - callbacks to register
   /// \param value - value of parameter
   /// \param def - default value
-  ParamVal(const std::string& name, const SubscriberList& callbacks, T value, T def)
+  ParamVal(const std::string& name, const ParamSubscribers& callbacks, RawType value, RawType def)
       : Param(name, callbacks),
         value_(value),
         def_(def)
   {
   }
 
+  /// virtual dtor
   virtual ~ParamVal() {}
+
   /// Retrieves the raw value of the param
-  /// \returns T - returns the raw value
-  T get() const
+  /// \returns RawType - returns the raw value
+  RawType get() const
   {
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
     return value_;
@@ -113,7 +135,7 @@ class ParamVal : public Param
   /// \returns bool - true if value was clamped, false otherwise
   ///
   /// If ParamVal is used directly, it's never clamped - but ParamRange may clamp it.
-  virtual bool set(T raw)
+  virtual bool set(RawType raw)
   {
     bool changed = false;
     {
@@ -125,11 +147,15 @@ class ParamVal : public Param
     return false;
   }
 
-  T default_value() const
+  /// Get the default value
+  /// \return RawType - default value for the parameter
+  RawType default_value() const
   {
     return def_;
   }
 
+  /// Called when a value is changed
+  /// \param from_raw - true if changed by raw value being set (e.g. from set())
   void OnChanged(bool from_raw)
   {
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
@@ -140,8 +166,8 @@ class ParamVal : public Param
   }
 
  protected:
-  T value_;
-  T def_;
+  RawType value_;  ///< Raw value of the parameter
+  RawType def_;    ///< Default value of the parameter
 };
 
 /// Ranged Parameter that accepts functions to convert between raw and scaled (device and gui).
@@ -150,7 +176,10 @@ template <class RawType, class ScaledType>
 class ParamRanged : public ParamVal<RawType>
 {
  public:
+  /// Function to go from a raw value and range to scaled value
   typedef std::function<ScaledType(RawType value, RawType minVal, RawType maxVal)> RawToScaledFunc;
+
+  /// Function to go from a scaled value to the raw value
   typedef std::function<RawType(ScaledType value, RawType minVal, RawType maxVal)> ScaledToRawFunc;
 
   /// Param constructor
@@ -158,8 +187,11 @@ class ParamRanged : public ParamVal<RawType>
   /// \param callbacks - callbacks to register
   /// \param value - value of parameter
   /// \param def - default value
-  ParamRanged(const std::string& name, const SubscriberList& callbacks, RawType value, RawType def,
-              RawType minVal, RawType maxVal, RawToScaledFunc r2sfunc, ScaledToRawFunc s2rfunc)
+  /// \param minVal - minimum value
+  /// \param maxVal - maximum value
+  ParamRanged(const std::string& name, const ParamSubscribers& callbacks, RawType value,
+              RawType def, RawType minVal, RawType maxVal, RawToScaledFunc r2sfunc,
+              ScaledToRawFunc s2rfunc)
       : ParamVal<RawType>(name, callbacks, value, def),
         minVal_(minVal),
         maxVal_(maxVal),
@@ -168,6 +200,7 @@ class ParamRanged : public ParamVal<RawType>
   {
   }
 
+  /// dtor
   virtual ~ParamRanged() {}
 
   /// Override of ParamVal's set() to add clamping
@@ -201,10 +234,10 @@ class ParamRanged : public ParamVal<RawType>
     bool clamped = false;
     {
       std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
-      RawType raw = ToRaw_(scaled, minVal_, maxVal_);
-      changed     = (ParamVal<RawType>::value_ != raw);
-      clamped     = (raw < minVal_) || (raw > maxVal_);
-      ParamVal<RawType>::value_      = std::clamp<RawType>(raw, minVal_, maxVal_);
+      RawType raw               = ToRaw_(scaled, minVal_, maxVal_);
+      changed                   = (ParamVal<RawType>::value_ != raw);
+      clamped                   = (raw < minVal_) || (raw > maxVal_);
+      ParamVal<RawType>::value_ = std::clamp<RawType>(raw, minVal_, maxVal_);
     }
     if (changed) ParamVal<RawType>::OnChanged(false);
     return clamped;

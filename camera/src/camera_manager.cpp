@@ -2,11 +2,8 @@
 #include <functional>
 #include <regex>
 #include "camera_info.hpp"
-
+#include "camera_v4l2.hpp"
 #include "camera_winrt.hpp"
-#if !_WIN32
-#include "camera_opencv.hpp"
-#endif
 #include "errors.hpp"
 #include "platform.hpp"
 

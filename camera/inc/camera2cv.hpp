@@ -3,7 +3,6 @@
 /// produces to OpenCV cv::Mat types for easy use.
 #ifndef LIGHTBOX_CAMERA_CAMERA2CV_HPP_
 #define LIGHTBOX_CAMERA_CAMERA2CV_HPP_
-
 #include <opencv2/opencv.hpp>
 #include "camera_frame.hpp"
 #include "errors.hpp"

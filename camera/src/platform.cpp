@@ -20,7 +20,7 @@ Platform::~Platform()
 
 Platform::Platform()
 {
-  // SetUnhandled();
+  SetUnhandled();
 
 #if _WIN32
   winrt::init_apartment();

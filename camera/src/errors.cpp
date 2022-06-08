@@ -36,6 +36,7 @@ std::string to_string(Result result)
 #define CATCH_UNHANDLED_SEH 0
 #endif
 
+#if _WIN32
 #if CATCH_UNHANDLED_SEH
 #include <windows.h>
 // Windows SEH handler
@@ -47,6 +48,7 @@ LONG WINAPI WinSehHandler(PEXCEPTION_POINTERS pExceptionInfo)
   std::abort();
 }
 #endif  // CATCH_UNHANDLED_SEH
+#endif  // _WIN32
 
 // Right now just sorting exceptions a little because the Windows runtime wasn't printing
 // anything on unhandled throws or other exceptions, just exiting silently.

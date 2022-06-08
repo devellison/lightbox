@@ -44,15 +44,14 @@ if(MSVC)
   )
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
-  find_package(OpenCV REQUIRED)
 endif()
 
 # Add camera library
 
 set(SRC
+    src/auto_close.cpp
     src/camera.cpp
     src/camera_winrt.cpp
-    src/camera_opencv.cpp
     src/camera_v4l2.cpp
     src/camera_manager.cpp
     src/camera_info.cpp
@@ -62,11 +61,11 @@ set(SRC
 )
 
 set(INC
+    inc/auto_close.hpp
     inc/camera_manager.hpp
     inc/camera_info.hpp
     inc/camera_winrt.hpp
     inc/camera_v4l2.hpp
-    inc/camera_opencv.hpp
     inc/camera.hpp
     inc/param.hpp
     inc/platform.hpp
@@ -77,7 +76,7 @@ set(INC
 add_library(${PROJECT_NAME} ${SRC} ${INC})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_include_directories(${PROJECT_NAME} PUBLIC inc ${OpenCV_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PUBLIC inc)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTRA_LIBS} Threads::Threads)
 

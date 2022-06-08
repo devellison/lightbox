@@ -1,3 +1,5 @@
+/// \file camera_winrt.hpp
+/// Windows camera class (C++/WinRT with MediaCapture)
 #if _WIN32
 #ifndef LIGHTBOX_CAMERA_CAMERA_WINRT_HPP_
 #define LIGHTBOX_CAMERA_CAMERA_WINRT_HPP_
@@ -19,11 +21,11 @@ class CameraWinRt : public Camera
 
  protected:
   /// Takes a device path string, returns vid/pid if found.
-  /// \param devPath - Windows DevicePath string
+  /// \param busPath - Windows ID string (bus path)
   /// \param vid - receives USB vendorId on success
   /// \param pid - receives USB pid on success
   /// \return true if vid/pid found.
-  static bool VidPidFromPath(const std::string& devPath, uint16_t& vid, uint16_t& pid);
+  static bool VidPidFromBusPath(const std::string& busPath, uint16_t& vid, uint16_t& pid);
 
   /// Loops until exiting_ is true grabbing frames
   void CaptureThread();
