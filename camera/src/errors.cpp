@@ -101,7 +101,7 @@ std::string SysErrorToString(int errorCode)
 #if _WIN32
   strerror_s(error.data(), kMaxErrorLength, errorCode);
 #else
-  strerror_r(errorCode, error.data(), kMaxErrorLength);
+  std::ignore = strerror_r(errorCode, error.data(), kMaxErrorLength);
 #endif
 
   error.resize(strlen(error.c_str()));
