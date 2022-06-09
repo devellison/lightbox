@@ -20,6 +20,17 @@
 
 namespace zebral
 {
+/// Retry interrupted ioctls
+int ioctl_retry(int fd, long unsigned int request, void* param)
+{
+  int r = -1;
+  do
+  {
+    r = ioctl(fd, request, param);
+  } while ((-1 == r) && (EINTR == errno));
+  return r;
+}
+
 /// Fun implementation details.
 class CameraV4L2::Impl
 {
@@ -34,11 +45,66 @@ class CameraV4L2::Impl
 CameraV4L2::CameraV4L2(const CameraInfo& info) : Camera(info)
 {
   impl_ = std::make_unique<Impl>(this);
-  impl_->handle_.reset(open(info_.path.c_str(), O_RDONLY));
+  impl_->handle_.reset(open(info_.path.c_str(), O_RDWR));
 
   if (impl_->handle_.bad())
   {
-    ZBA_THROW("Error opening device: " + info_.path, Result::ZBA_CAMERA_OPEN_FAILED);
+    ZBA_THROW("Error opening device(): " + info_.path, Result::ZBA_CAMERA_OPEN_FAILED);
+  }
+
+  v4l2_capability caps;
+  memset(&caps, 0, sizeof(caps));
+  if (-1 == ioctl_retry(impl_->handle_, VIDIOC_QUERYCAP, &caps))
+  {
+    ZBA_THROW("Error querying device: " + info_.name, Result::ZBA_CAMERA_OPEN_FAILED);
+  }
+
+  if (!(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE))
+  {
+    ZBA_THROW("Capture interface not supported: " + info_.name, Result::ZBA_CAMERA_OPEN_FAILED);
+  }
+
+  struct v4l2_fmtdesc formatDesc;
+  v4l2_frmsizeenum frameSize;
+
+  for (int format_idx = 0;; format_idx++)
+  {
+    memset(&formatDesc, 0, sizeof(formatDesc));
+    formatDesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    formatDesc.index = format_idx;
+
+    if (-1 == ioctl_retry(impl_->handle_, VIDIOC_ENUM_FMT, &formatDesc))
+    {
+      ZBA_ERRNO("Error enumerating video formats.");
+      // Done.
+      break;
+    }
+    for (int fsize_idx = 0;; fsize_idx++)
+    {
+      memset(&frameSize, 0, sizeof(frameSize));
+      frameSize.index        = fsize_idx;
+      frameSize.pixel_format = formatDesc.pixelformat;
+      if (-1 == ioctl_retry(impl_->handle_, VIDIOC_ENUM_FRAMESIZES, &frameSize))
+      {
+        break;
+      }
+      std::string format(reinterpret_cast<char*>(&frameSize.pixel_format), 4);
+      float fps = 0.0f;
+      /// {TODO} investigate stepwise sizes. For now, ignore them.
+      if (V4L2_FRMSIZE_TYPE_DISCRETE == frameSize.type)
+      {
+        int width     = frameSize.discrete.width;
+        int height    = frameSize.discrete.height;
+        int channels  = 0;
+        int bytespppc = 0;
+
+        FormatInfo fmt(width, height, fps, channels, bytespppc, format);
+        if (IsFormatSupported(fmt))
+        {
+          info_.AddFormat(fmt);
+        }
+      }
+    }
   }
 }
 
@@ -60,15 +126,18 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
     if (filename.compare(0, 5, "video") != 0) continue;
 
     // open it
-    std::string path = dir_entry.path().string();
-    AutoClose handle(open(path.c_str(), O_RDONLY));
-    if (handle.bad()) continue;
-
-    // check if it's v4l2...
+    ZBA_LOG("Checking %s", filename.c_str());
     v4l2_capability caps;
-    int result = ioctl(handle.get(), VIDIOC_QUERYCAP, &caps);
-    if (-1 == result) continue;
+    std::string path = dir_entry.path().string();
+    memset(&caps, 0, sizeof(caps));
+    {
+      AutoClose handle(open(path.c_str(), O_RDONLY));
+      if (handle.bad()) continue;
 
+      // check if it's v4l2...
+      int result = ioctl_retry(handle, VIDIOC_QUERYCAP, &caps);
+      if (-1 == result) continue;
+    }
     if (!(V4L2_CAP_VIDEO_CAPTURE & caps.capabilities)) continue;
 
 // Looks like these are straight ASCIIZ, no sizeof required.
@@ -91,8 +160,10 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
   return cameras;
 }
 
-void CameraV4L2::OnSetFormat(const FormatInfo&)  // info)
+FormatInfo CameraV4L2::OnSetFormat(const FormatInfo&)  // info)
 {
+  FormatInfo fmt;
+  return fmt;
 }
 
 }  // namespace zebral

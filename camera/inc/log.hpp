@@ -8,7 +8,7 @@
 #include <sstream>
 #include <string>
 #include "platform.hpp"
-
+#include "store_error.hpp"
 namespace zebral
 {
 /// Number of digits to use for seconds precision
@@ -43,7 +43,8 @@ enum class ZBA_LL : int
 /// Error logging macro - goes to sterr
 /// \param msg - message and printf style formatting string
 /// \param ... - printf style arguments
-#define ZBA_ERR(msg, ...) zba_log(ZBA_LL::LL_ERROR, ZBA_LOCINFO, msg, ##__VA_ARGS__)
+#define ZBA_ERR(msg, ...)   zba_log(ZBA_LL::LL_ERROR, ZBA_LOCINFO, msg, ##__VA_ARGS__)
+#define ZBA_ERRNO(msg, ...) zba_log_errno(ZBA_LL::LL_ERROR, ZBA_LOCINFO, msg, ##__VA_ARGS__)
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -67,6 +68,8 @@ enum class ZBA_LL : int
 /// \param msg - log message
 /// \param ... - variable arguments formatted as printf()
 void zba_log(ZBA_LL level, const char* loc, const char* msg, ...);
+
+void zba_log_errno(ZBA_LL level, const char* loc, const char* msg, ...);
 
 /// stream log function - logs classes that have an operator<< overload but not an
 /// easy const char* out.

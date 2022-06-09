@@ -1,6 +1,7 @@
 #if _WIN32
 #include "camera_winrt.hpp"
 
+#include <algorithm>
 #include <regex>
 
 #include "errors.hpp"
@@ -131,7 +132,11 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
       // Skip non-Video formats.
       auto major = curFormat.MajorType();
       if (major != L"Video") continue;
-      info_.formats.emplace_back(MediaFrameFormatToFormat(curFormat));
+      auto format = MediaFrameFormatToFormat(curFormat);
+      if (IsFormatSupported(format))
+      {
+        info_.AddFormat(format);
+      }
     }
   }
 }
@@ -192,7 +197,7 @@ std::vector<CameraInfo> CameraWinRt::Enumerate()
     {
       if (sourceInfo.MediaStreamType() == MediaStreamType::VideoRecord)
       {
-        // We really should support depth and infrared as well at the least.
+        /// {TODO} We really should support depth and infrared as well at the least.
         if (sourceInfo.SourceKind() == MediaFrameSourceKind::Color)
         {
           foundSupported = true;
@@ -222,7 +227,7 @@ std::vector<CameraInfo> CameraWinRt::Enumerate()
   return cameras;
 }
 
-void CameraWinRt::OnSetFormat(const FormatInfo& info)
+FormatInfo CameraWinRt::OnSetFormat(const FormatInfo& info)
 {
   impl_->sources_ = impl_->mc_.FrameSources();
 
@@ -239,16 +244,22 @@ void CameraWinRt::OnSetFormat(const FormatInfo& info)
       auto formatInfo = MediaFrameFormatToFormat(curFormat);
 
       // Find something that matches. Unset entries are wildcards.
-      if ((formatInfo.width != info.width) && (info.width != 0)) continue;
-      if ((formatInfo.height != info.height) && (info.height != 0)) continue;
-      if ((formatInfo.channels != info.channels) && (info.channels != 0)) continue;
-      if ((formatInfo.format != info.format) && (!info.format.empty())) continue;
+      if (!formatInfo.Matches(info)) continue;
 
       // Set the format
       mediaFrameSource.SetFormatAsync(curFormat).get();
+      winrt::hstring fourCC = winrt::to_hstring(formatInfo.format);
+
+      /// {TODO} This switches decoding on and off, but should also be able to switch
+      /// to different greyscale image types and similar.
+      /// Much work to be done on decoding still.
       impl_->reader_ =
-          impl_->mc_.CreateFrameReaderAsync(mediaFrameSource, MediaEncodingSubtypes::Bgra8()).get();
-      return;
+          impl_->mc_
+              .CreateFrameReaderAsync(mediaFrameSource,
+                                      (decode_ ? MediaEncodingSubtypes::Bgra8() : fourCC))
+              .get();
+
+      return formatInfo;
     }
   }
   ZBA_THROW("Could find requested format.", Result::ZBA_CAMERA_ERROR);
@@ -296,10 +307,12 @@ void CameraWinRt::Impl::OnFrame(const Windows::Media::Capture::Frames::MediaFram
 
       auto plane_desc = bmpBuffer.GetPlaneDescription(0);
 
-      /// {TODO} Hardcoded bgra8, and doesn't account for padded stride.
-      int width             = plane_desc.Width;
-      int height            = plane_desc.Height;
-      int channels          = plane_desc.Stride / width;
+      /// {TODO} Hardcoded bgra8, and doesn't account for padded stride or encodings.
+      /// Right now if we switch to undecoded, we'll still have the original-sized
+      /// buffer and it will display completely wrong.
+      int width             = this->parent_.current_mode_->width;
+      int height            = this->parent_.current_mode_->height;
+      int channels          = 4;
       int bytes_per_channel = 1;
       bool is_signed        = false;
       bool is_floating      = false;
@@ -312,7 +325,8 @@ void CameraWinRt::Impl::OnFrame(const Windows::Media::Capture::Frames::MediaFram
         uint8_t* dataPtr = nullptr;
         uint32_t dataLen = 0;
         check_hresult(interop->GetBuffer(&dataPtr, &dataLen));
-        memcpy(cameraFrame.data(), dataPtr, dataLen);
+        memcpy(cameraFrame.data(), dataPtr,
+               min(static_cast<size_t>(dataLen), cameraFrame.data_size()));
       }
       ref.Close();
       bmpBuffer.Close();

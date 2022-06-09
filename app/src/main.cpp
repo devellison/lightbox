@@ -52,7 +52,12 @@ int main(int argc, char* argv[])
       auto info = camera->GetCameraInfo();
       if (info.formats.size())
       {
-        camera->SetFormat(info.formats[0]);
+        // Largest 30fps format.
+        FormatInfo f;
+        f.fps = 30;
+        // f.format = "NV12";
+        // camera->SetFormat(f, false);
+        camera->SetFormat(f);
       }
     }
   }

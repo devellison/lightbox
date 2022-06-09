@@ -5,6 +5,7 @@
 #define LIGHTBOX_CAMERA_CAMERA_INFO_HPP_
 
 #include <ostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,14 @@ struct FormatInfo
         format(fmt_format)
   {
   }
+
+  /// Less than comparison between FormatInfo for sorting.
+  bool operator<(const FormatInfo& f) const;
+
+  /// Returns true if the fields of the format struct match.
+  /// 0 values are considered wildcards, so a fully blank
+  /// FormatInfo will match anything.
+  bool Matches(const FormatInfo& f) const;
 
   int width;           ///< Width in pixels
   int height;          ///< Height in pixels
@@ -75,7 +84,7 @@ struct CameraInfo
   /// \param format - FormatInfo to add to available formats for the camera.
   void AddFormat(const FormatInfo& format)
   {
-    formats.emplace_back(format);
+    formats.emplace(format);
   }
 
   int index;           ///< Index (All, but only really important in opencv)
@@ -87,12 +96,14 @@ struct CameraInfo
   uint16_t vid;        ///< Vendor ID (USB) if available. 0 otherwise.
   uint16_t pid;        ///< Product ID (USB) if available. 0 otherwise.
 
-  std::vector<FormatInfo> formats;  ///< Formats available
+  std::set<FormatInfo> formats;  ///< Formats available
   int selected_format;  ///< index into formats of selected one, or NO_FORMAT_SELECTED for none.
 };
 
 /// Convenience operator for dumping CameraInfos for debugging
 std::ostream& operator<<(std::ostream& os, const CameraInfo& camInfo);
+/// Convenience operator for dumping FormatInfoss for debugging
+std::ostream& operator<<(std::ostream& os, const FormatInfo& fmtInfo);
 
 }  // namespace zebral
 

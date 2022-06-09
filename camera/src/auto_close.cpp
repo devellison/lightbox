@@ -25,6 +25,11 @@ AutoClose::~AutoClose()
   }
 }
 
+AutoClose::operator int() const
+{
+  return handle_;
+}
+
 int AutoClose::get() const
 {
   return handle_;

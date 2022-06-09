@@ -58,6 +58,7 @@ set(SRC
     src/platform.cpp
     src/errors.cpp
     src/log.cpp
+    src/store_error.cpp
 )
 
 set(INC
@@ -71,6 +72,7 @@ set(INC
     inc/platform.hpp
     inc/errors.hpp
     inc/log.hpp
+    inc/store_error.hpp
 )
 
 add_library(${PROJECT_NAME} ${SRC} ${INC})

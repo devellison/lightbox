@@ -1,3 +1,5 @@
+/// \file camera_tests.cpp
+/// Unit tests and smoke tests for the camera library
 #if _WIN32
 #define _CRT_DECLARE_NONSTDC_NAMES 1  // get unix-style read/write flags
 #define _CRT_NONSTDC_NO_DEPRECATE     // c'mon, I just want to call open().
@@ -91,9 +93,21 @@ TEST(CameraTests, CameraSanity)
     auto camera = cmgr.Create(camList[idx]);
     auto info   = camera->GetCameraInfo();
 
+    ZBA_LOGSS(info);
+
     if (info.formats.size())
     {
-      camera->SetFormat(info.formats[0]);
+      /// Pick the first format with 30 fps.
+      FormatInfo f;
+      f.fps = 30;
+      camera->SetFormat(f);
+    }
+    else
+    {
+      // No formats, skip it.
+      ZBA_LOG("No formats on camera %d, skipping...", idx);
+      idx++;
+      continue;
     }
     ZBA_LOG("Starting %s...", info.name.c_str());
 
@@ -108,8 +122,10 @@ TEST(CameraTests, CameraSanity)
       count++;
     };
 
+    const auto kWaitForFramesTime = 2;
+
     camera->Start(frameCallback);
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(kWaitForFramesTime));
     camera->Stop();
     ASSERT_TRUE(count > 1);
     ZBA_LOG("%d frames in a second", static_cast<int>(count));
@@ -118,7 +134,7 @@ TEST(CameraTests, CameraSanity)
     // Direct call method - start it, then ask for new frames.
     camera->Start();
     auto start = zba_now();
-    while (zba_elapsed_sec(start) < 1)
+    while (zba_elapsed_sec(start) < kWaitForFramesTime)
     {
       auto frame = camera->GetNewFrame(1000);
       ASSERT_TRUE(frame);

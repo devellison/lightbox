@@ -1,4 +1,6 @@
 #include "errors.hpp"
+#include <cstring>
+#include <map>
 
 namespace zebral
 {
@@ -84,6 +86,68 @@ void SetUnhandled()
 
     std::abort();
   });
+}
+
+std::string SysErrorToString(int errorCode)
+{
+  std::string error;
+  if (errorCode == 0)
+  {
+    return error;
+  }
+
+  error.resize(kMaxErrorLength);
+
+#if _WIN32
+  strerror_s(error.data(), kMaxErrorLength, errorCode);
+#else
+  strerror_r(errorCode, error.data(), kMaxErrorLength);
+#endif
+
+  error.resize(strlen(error.c_str()));
+  return error;
+}
+
+// Maintenance nightmare. Have a string table generate this stuff
+// when time allows, or at least generate the header from this table so
+// it's in one place.
+std::string ZBAErrorToString(Result result)
+{
+  struct StringTblEntry
+  {
+    Result code;
+    std::string codeName;
+    std::string description;
+  };
+
+  const static std::map<Result, StringTblEntry> ZBAErrorTable = {
+      {Result::ZBA_SUCCESS, {Result::ZBA_SUCCESS, "ZBA_SUCCESS", ""}},
+      {Result::ZBA_STATUS, {Result::ZBA_STATUS, "ZBA_STATUS", ""}},
+      {Result::ZBA_UNKNOWN_ERROR, {Result::ZBA_UNKNOWN_ERROR, "ZBA_UNKNOWN_ERROR", ""}},
+      {Result::ZBA_ERROR, {Result::ZBA_ERROR, "ZBA_ERROR", ""}},
+      {Result::ZBA_UNDEFINED_VALUE, {Result::ZBA_UNDEFINED_VALUE, "ZBA_UNDEFINED_VALUE", ""}},
+      {Result::ZBA_INVALID_COMMAND_LINE,
+       {Result::ZBA_INVALID_COMMAND_LINE, "ZBA_INVALID_COMMAND_LINE", ""}},
+      {Result::ZBA_ASSERTION_FAILED, {Result::ZBA_ASSERTION_FAILED, "ZBA_ASSERTION_FAILED", ""}},
+      {Result::ZBA_INVALID_RANGE, {Result::ZBA_INVALID_RANGE, "ZBA_INVALID_RANGE", ""}},
+      {Result::ZBA_CAMERA_ERROR, {Result::ZBA_CAMERA_ERROR, "ZBA_CAMERA_ERROR", ""}},
+      {Result::ZBA_CAMERA_OPEN_FAILED,
+       {Result::ZBA_CAMERA_OPEN_FAILED, "ZBA_CAMERA_OPEN_FAILED", ""}},
+      {Result::ZBA_UNSUPPORTED_FMT, {Result::ZBA_UNSUPPORTED_FMT, "ZBA_UNSUPPORTED_FMT", ""}},
+      {Result::ZBA_SYS_ERROR, {Result::ZBA_SYS_ERROR, "ZBA_SYS_ERROR", ""}},
+      {Result::ZBA_SYS_COM_ERROR, {Result::ZBA_SYS_COM_ERROR, "ZBA_SYS_COM_ERROR", ""}},
+      {Result::ZBA_SYS_MF_ERROR, {Result::ZBA_SYS_MF_ERROR, "ZBA_SYS_MF_ERROR", ""}},
+      {Result::ZBA_SYS_ATT_ERROR, {Result::ZBA_SYS_ATT_ERROR, "ZBA_SYS_ATT_ERROR", ""}}};
+  auto iterator = ZBAErrorTable.find(result);
+  if (iterator != ZBAErrorTable.end())
+  {
+    return iterator->second.codeName;
+  }
+  if (Failed(result))
+  {
+    return "Unknown Error";
+  }
+  return "Unknown Status";
 }
 
 }  // namespace zebral

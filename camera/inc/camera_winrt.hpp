@@ -37,7 +37,7 @@ class CameraWinRt : public Camera
   void OnStop() override;
 
   /// Called to set camera mode. Should throw on failure.
-  void OnSetFormat(const FormatInfo& info);
+  FormatInfo OnSetFormat(const FormatInfo& info) override;
 
   /// The implementation sits in camera_win_impl
   /// to avoid throwing all sorts of stuff into the header.

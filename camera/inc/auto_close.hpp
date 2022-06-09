@@ -1,3 +1,5 @@
+/// \file auto_close.hpp
+/// File descriptor wrapper
 #ifndef LIGHTBOX_CAMERA_AUTO_CLOSE_HPP_
 #define LIGHTBOX_CAMERA_AUTO_CLOSE_HPP_
 
@@ -22,6 +24,10 @@ class AutoClose
   /// Retrieves the handle
   /// \returns int - the handle
   int get() const;
+
+  /// Alternative way to get the handle.
+  /// \returns int - the handle.
+  operator int() const;
 
   /// Closes current handle and set handle to new one
   /// \param new_handle - the new handle

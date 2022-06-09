@@ -70,10 +70,16 @@ class Camera
   CameraInfo GetCameraInfo();
 
   /// Sets the camera mode (should be done before calling Start()!)
+  /// {TODO}: Undecoded buffers is a work-in-progress, as is decoding
+  /// the buffers ourselves in the library.
+  ///
   /// \param info - Struct from the CameraInfo after creation,
   ///               or build your own and set unimportant members to 0.
+  /// \param decode - if true, decodes it into an uncompressed format.
+  ///               if false, leaves it in the fourcc's specified in info.
+  ///
   /// Will take the first format that matches non-zero members.
-  virtual void SetFormat(const FormatInfo& info);
+  virtual void SetFormat(const FormatInfo& info, bool decode = true);
 
   /// Retrieves the camera mode. empty if not yet set with SetFormat
   /// \returns std::optional<FormatInfo> - empty if SetFormat not called, otherwise
@@ -81,6 +87,16 @@ class Camera
   virtual std::optional<FormatInfo> GetFormat();
 
  protected:
+  /// Checks if we will support a format.
+  /// Debating about doing our own codecs or allowing raw passthrough on these,
+  /// so there'll be more to this at that point.
+  ///
+  /// If false is returned, it won't be enumerated in the camera's available
+  /// options.
+  ///
+  /// Right now, just ignoring MJPG.
+  virtual bool IsFormatSupported(const FormatInfo& fmt);
+
   /// Handles received frame by updating last_frame_ and calling callback if available.
   /// Inheriting classes should call this when they get a frame!
   /// \param frame - frame that has been received.
@@ -97,7 +113,8 @@ class Camera
 
   /// Camera/API specific set camera mode.
   /// \param mode - Requested mode. Fields set to 0 can be ignored.
-  virtual void OnSetFormat(const FormatInfo& mode) = 0;
+  /// \returns FormatInfo - Fully filled out format details of the mode actually set.
+  virtual FormatInfo OnSetFormat(const FormatInfo& mode) = 0;
 
   CameraInfo info_;                           ///< Camera info, used for creation
   std::unique_ptr<FormatInfo> current_mode_;  ///< Current mode, null if unset.
@@ -108,6 +125,9 @@ class Camera
   CameraFrame last_frame_;                    ///< Last frame received
   TimeStamp last_timestamp_;                  ///< Timestamp of last frame received
   std::condition_variable cv_;                ///< Condition var for frame notification
+  bool decode_;                               ///< If true (default), decodes to RGB or V.
+                                              ///< Otherwise, buffers are left in their
+                                              ///< original state from the system.
 };
 
 }  // namespace zebral

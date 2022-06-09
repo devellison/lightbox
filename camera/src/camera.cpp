@@ -1,4 +1,5 @@
 #include "camera.hpp"
+#include "errors.hpp"
 #include "log.hpp"
 
 namespace zebral
@@ -12,7 +13,8 @@ Camera::Camera(const CameraInfo& info)
     : info_(info),
       callback_(nullptr),
       exiting_(false),
-      running_(false)
+      running_(false),
+      decode_(true)
 {
 }
 
@@ -99,10 +101,26 @@ CameraInfo Camera::GetCameraInfo()
   return info_;
 }
 
-void Camera::SetFormat(const FormatInfo& info)
+void Camera::SetFormat(const FormatInfo& info, bool decode)
 {
-  OnSetFormat(info);
-  current_mode_ = std::make_unique<FormatInfo>(info);
+  // Find matching format here - if we rely on the inherited classes
+  // to do it against the system formats, our sort order won't be
+  // taken into account easily.
+  for (auto checkFormat : info_.formats)
+  {
+    if (info.Matches(checkFormat))
+    {
+      decode_       = decode;
+      auto setFmt   = OnSetFormat(checkFormat);
+      current_mode_ = std::make_unique<FormatInfo>(setFmt);
+      ZBA_LOG("Mode for camera %s set. Decode: %d", info_.name.c_str(), decode_);
+      ZBA_LOGSS(*current_mode_.get());
+      return;
+    }
+  }
+  ZBA_ERR("No matches for requested format.");
+  ZBA_LOGSS(info);
+  ZBA_THROW("Format not found!", Result::ZBA_UNSUPPORTED_FMT);
 }
 
 /// Retrieves the camera mode. empty if not yet set.
@@ -110,6 +128,12 @@ std::optional<FormatInfo> Camera::GetFormat()
 {
   if (!current_mode_) return {};
   return *current_mode_.get();
+}
+
+bool Camera::IsFormatSupported(const FormatInfo& fmt)
+{
+  if (fmt.format == "MJPG") return false;
+  return true;
 }
 
 }  // namespace zebral

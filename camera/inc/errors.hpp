@@ -12,6 +12,7 @@
 
 namespace zebral
 {
+static constexpr size_t kMaxErrorLength = 256;
 /// Error codes, often passed with exceptions.
 /// Expect lightbox to be small.... if not, this needs TLC.
 enum class Result : uint32_t
@@ -62,10 +63,11 @@ class Error : public std::runtime_error
   /// Generally, use ZBA_THROW or similar macro to throw these so it'll capture the file/line as
   /// well.
   Error(const std::string& msg, Result result = Result::ZBA_UNKNOWN_ERROR,
-        const char* file = nullptr, int line = 0)
+        const char* file = nullptr, int line = 0, int sys_errno = 0)
       : std::runtime_error(msg),
         result_(result),
-        where_(std::string(file) + "(" + std::to_string(line) + ")")
+        where_(std::string(file) + "(" + std::to_string(line) + ")"),
+        errno_(sys_errno)
   {
   }
 
@@ -83,14 +85,23 @@ class Error : public std::runtime_error
     return where_;
   }
 
+  int system_error() const
+  {
+    return errno_;
+  }
+
  protected:
   /// Numeric result in case we want to handle things nicely.
   Result result_;
   std::string where_;
+  int errno_;
 };
 
-/// Macro to throw an error with location
-#define ZBA_THROW(msg, result) throw Error(msg, result, __FILE__, __LINE__)
+std::string SysErrorToString(int errorCode);
+std::string ZBAErrorToString(Result result);
 
+/// Macro to throw an error with location
+#define ZBA_THROW(msg, result)       throw Error(msg, result, __FILE__, __LINE__)
+#define ZBA_THROW_ERRNO(msg, result) throw Error(msg, result, __FILE__, __LINE__, errno)
 }  // namespace zebral
 #endif  // LIGHTBOX_ERRORS_HPP_
