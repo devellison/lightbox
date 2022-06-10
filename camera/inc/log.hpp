@@ -5,7 +5,6 @@
 #define LIGHTBOX_CAMERA_LOG_HPP_
 #include <cstdarg>
 #include <iostream>
-#include <source_location>
 #include <sstream>
 #include <string>
 #include <string_view>

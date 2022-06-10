@@ -11,6 +11,7 @@
 #include <windows.h>
 #include <winrt/base.h>
 #include <format>
+#include <source_location>
 #define zba_format     std::format
 #define zba_vformat    std::vformat
 #define zba_make_args  std::make_format_args
