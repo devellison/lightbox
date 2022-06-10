@@ -8,8 +8,20 @@
 #include <string>
 
 #if _WIN32
-#include < windows.h>
+#include <windows.h>
 #include <winrt/base.h>
+#include <format>
+#include <source_location>
+#define zba_format     std::format
+#define zba_vformat    std::vformat
+#define zba_make_args  std::make_format_args
+#define zba_source_loc std::source_location
+#elif __linux__
+#include <fmt/format.h>
+#define zba_format     fmt::format
+#define zba_vformat    fmt::vformat
+#define zba_make_args  fmt::make_format_args
+#define zba_source_loc zebral::source_location
 #endif
 
 namespace zebral
@@ -59,6 +71,45 @@ double zba_elapsed_sec(ZBA_TSTAMP start, ZBA_TSTAMP end);
 /// \param sec_precision - number of digits for fractional seconds.
 /// \return std::string - formatted local time string
 std::string zba_local_time(ZBA_TSTAMP tp, int sec_precision = 0);
+
+#ifndef _WIN32
+/// source_location replacement until people have it in c++20
+/// (missing from clang/gcc that I can get on ubuntu 20)
+struct source_location
+{
+  constexpr source_location(const char* file, const char* function, const int line)
+      : file_(file),
+        function_(function),
+        line_(line)
+  {
+  }
+  static constexpr source_location current(const char* file     = __builtin_FILE(),
+                                           const char* function = __builtin_FUNCTION(),
+                                           const int line       = __builtin_LINE())
+  {
+    return source_location(file, function, line);
+  };
+
+  constexpr const char* file_name() const
+  {
+    return file_;
+  }
+
+  constexpr const char* function_name() const
+  {
+    return function_;
+  }
+
+  constexpr int line() const
+  {
+    return line_;
+  }
+
+  const char* file_;
+  const char* function_;
+  const int line_;
+};
+#endif
 
 }  // namespace zebral
 

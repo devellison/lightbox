@@ -1,7 +1,6 @@
 #if __linux__
 #include "camera_v4l2.hpp"
 
-#include <filesystem>
 #include <functional>
 #include <regex>
 #include <string>
@@ -15,6 +14,7 @@
 
 #include "auto_close.hpp"
 #include "errors.hpp"
+#include "find_files.hpp"
 #include "log.hpp"
 #include "platform.hpp"
 
@@ -117,18 +117,17 @@ void CameraV4L2::OnStop() {}
 std::vector<CameraInfo> CameraV4L2::Enumerate()
 {
   std::vector<CameraInfo> cameras;
-  for (const std::filesystem::directory_entry& dir_entry :
-       std::filesystem::directory_iterator{"/dev/"})
+
+  auto video_devs = FindFiles("/dev/", "video([0-9]+)");
+  for (auto curMatch : video_devs)
   {
-    // Does it start with "video"?
-    std::string filename = dir_entry.path().filename();
+    int idx = std::stoi(curMatch.matches[1]);
 
-    if (filename.compare(0, 5, "video") != 0) continue;
+    std::string path = curMatch.dir_entry.path().string();
 
-    // open it
-    ZBA_LOG("Checking %s", filename.c_str());
+    ZBA_LOG("Checking {}", path.c_str());
+
     v4l2_capability caps;
-    std::string path = dir_entry.path().string();
     memset(&caps, 0, sizeof(caps));
     {
       AutoClose handle(open(path.c_str(), O_RDONLY));
@@ -140,19 +139,16 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
     }
     if (!(V4L2_CAP_VIDEO_CAPTURE & caps.capabilities)) continue;
 
-// Looks like these are straight ASCIIZ, no sizeof required.
-#define FIELD_TO_STRING(x) reinterpret_cast<char*>(&x[0])
+    std::string name(reinterpret_cast<char*>(&caps.card[0]));
+    std::string driver(reinterpret_cast<char*>(&caps.driver[0]));
+    std::string bus(reinterpret_cast<char*>(&caps.bus_info[0]));
 
-    std::string name(FIELD_TO_STRING(caps.card));
-    std::string driver(FIELD_TO_STRING(caps.driver));
-    std::string bus(FIELD_TO_STRING(caps.bus_info));
-
-    int idx      = std::atoi(filename.substr(5, std::string::npos).c_str());
     uint16_t vid = 0;
     uint16_t pid = 0;
     if (bus.compare(0, 3, "usb") == 0)
     {
       /// {TODO} It's a USB device. Track down the VID/PID
+      // / sys / bus / usb / drivers / uvcvideo
     }
     cameras.emplace_back(idx, 0, name, bus, path, driver, vid, pid);
   }

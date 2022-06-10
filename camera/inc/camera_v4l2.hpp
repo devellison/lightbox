@@ -20,13 +20,6 @@ class CameraV4L2 : public Camera
   static std::vector<CameraInfo> Enumerate();
 
  protected:
-  /// Takes a device path string, returns vid/pid if found.
-  /// \param busPath - Bus path
-  /// \param vid - receives USB vendorId on success
-  /// \param pid - receives USB pid on success
-  /// \return true if vid/pid found.
-  static bool VidPidFromBusPath(const std::string& busPath, uint16_t& vid, uint16_t& pid);
-
   /// Loops until exiting_ is true grabbing frames
   void CaptureThread();
 

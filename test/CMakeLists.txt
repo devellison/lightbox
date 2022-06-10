@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.21)
 
 # Setup gtest Note - this seems kinda slow/repeatedly run from VSCode.  Fix.
 include(FetchContent)

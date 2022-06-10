@@ -113,7 +113,7 @@ void Camera::SetFormat(const FormatInfo& info, bool decode)
       decode_       = decode;
       auto setFmt   = OnSetFormat(checkFormat);
       current_mode_ = std::make_unique<FormatInfo>(setFmt);
-      ZBA_LOG("Mode for camera %s set. Decode: %d", info_.name.c_str(), decode_);
+      ZBA_LOG("Mode for camera {} set. Decode: {}", info_.name, decode_);
       ZBA_LOGSS(*current_mode_.get());
       return;
     }

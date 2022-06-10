@@ -7,8 +7,15 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
+
 #include "platform.hpp"
 #include "store_error.hpp"
+
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#endif
+
 namespace zebral
 {
 /// Number of digits to use for seconds precision
@@ -16,10 +23,8 @@ static constexpr int ZBA_LOG_PRECISION = 4;
 
 #define ZBA_EXPSTRING(x)  #x                ///< line-expansion for ZBA_LOCINFO
 #define ZBA_STRINGCONV(x) ZBA_EXPSTRING(x)  ///< line-expansion for ZBA_LOCINFO
-
 /// Convert location in source code to string
 #define ZBA_LOCINFO __FILE__ "(" ZBA_STRINGCONV(__LINE__) ") : "
-
 #define ZBA_TODO(x) message(ZBA_LOCINFO x)  ///< Usage: #pragma REMINDER("Fix this")
 
 /// Log level, ad them as we need.
@@ -30,29 +35,21 @@ enum class ZBA_LL : int
   LL_INFO    ///< Info log level (stdout)
 };
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#endif
-
 /// Normal logging macro - goes to stdout
 /// \param msg - message and printf style formatting string
 /// \param ... - printf style arguments
-#define ZBA_LOG(msg, ...) zba_log(ZBA_LL::LL_INFO, ZBA_LOCINFO, msg, ##__VA_ARGS__)
 
-/// Error logging macro - goes to sterr
-/// \param msg - message and printf style formatting string
-/// \param ... - printf style arguments
-#define ZBA_ERR(msg, ...)   zba_log(ZBA_LL::LL_ERROR, ZBA_LOCINFO, msg, ##__VA_ARGS__)
-#define ZBA_ERRNO(msg, ...) zba_log_errno(ZBA_LL::LL_ERROR, ZBA_LOCINFO, msg, ##__VA_ARGS__)
+#define ZBA_LOG(msg, ...) zba_log(ZBA_LL::LL_INFO, msg __VA_OPT__(, ) __VA_ARGS__)
 
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+/// Error log
+#define ZBA_ERR(msg, ...) zba_log(ZBA_LL::LL_ERROR, msg __VA_OPT__(, ) __VA_ARGS__)
+
+/// Error log with errno
+#define ZBA_ERRNO(msg, ...) zba_log_errno(ZBA_LL::LL_ERROR, msg __VA_OPT__(, ) __VA_ARGS__)
 
 /// This logs types that have an operator<< overload but not a string conversion.
 /// \param obj - object to log, must have operator<< overload
-#define ZBA_LOGSS(obj) zba_logss(ZBA_LL::LL_INFO, ZBA_LOCINFO, obj)
+#define ZBA_LOGSS(obj) zba_logss(ZBA_LL::LL_INFO, obj)
 
 /// Assert with message. Right now, works in both debug and release modes.
 /// May add removal later?  Also a retry for debugging like CAT had?
@@ -62,43 +59,45 @@ enum class ZBA_LL : int
     ZBA_THROW(msg, Result::ZBA_ASSERTION_FAILED); \
   }
 
-/// base log function - use ZBA_LOG, ZBA_ERR, ZBA_LOGSS macros.
+/// Core log function - add file support etc when needed.
+/// \param level - log level (LL_ERROR goes to std::cerr right now)
+/// \param logstr - fully composed log string.
+void zba_log_internal(ZBA_LL level, const std::string& logstr, const zba_source_loc& loc);
+
+/// basic log function - use ZBA_LOG, ZBA_ERR, ZBA_LOGSS macros.
 /// \param level - log level. Right now, LL_ERROR goes to stderr, everything else to stdout
 /// \param loc - ZERBRAL_LOCINFO file(line) string
-/// \param msg - log message
-/// \param ... - variable arguments formatted as printf()
-void zba_log(ZBA_LL level, const char* loc, const char* msg, ...);
+/// \param msg - log message (format-style)
+/// \param ... - format-style args
+template <typename... Args>
+void zba_log(ZBA_LL level, const std::string& msg, Args&&... args)
+{
+  StoreError err;
+  std::string msgstr = zba_vformat(msg, zba_make_args(args...));
+  zba_log_internal(level, msgstr, zba_source_loc::current());
+}
 
-void zba_log_errno(ZBA_LL level, const char* loc, const char* msg, ...);
+template <typename... Args>
+void zba_log_errno(ZBA_LL level, const std::string& msg, Args&&... args)
+{
+  StoreError err;
+  std::string msgstr = zba_vformat(msg, zba_make_args(args...));
+  std::string outstr = msgstr + " (" + err.ToString() + ") ";
+  zba_log_internal(level, outstr, zba_source_loc::current());
+}
 
 /// stream log function - logs classes that have an operator<< overload but not an
 /// easy const char* out.
 /// \tparam T - class type to log
 /// \param level - log level
-/// \param loc - ZBA_LOCINFO string for source location
 /// \param msg - class instance to log
 template <class T>
-void zba_logss(ZBA_LL level, const char* loc, T msg)
+void zba_logss(ZBA_LL level, T msg)
 {
   std::stringstream ss;
   ss << msg;
-  zba_log(level, loc, ss.str().c_str());
+  zba_log_internal(level, ss.str(), zba_source_loc::current());
 }
-
-/// {TODO} Replace all this with std::fmt when c++20 is more available.
-
-/// sprintf to a std::string
-/// \param msg - message with printf-style formatters
-/// \param ... - variable arguments for printf() style formatting
-std::string zba_sformat(const char* msg, ...);
-
-/// sprintf to a std::string taking a var argument list
-/// \param msg - message with printf-style formatters
-/// \param vaArgs - variable arguments for printf() style formatting
-std::string zba_sformat(const char* msg, va_list vaArgs);
-}  // namespace zebral
-
-#include <string_view>
 
 #define ZBA_TYPE_NAME(x) std::string(type_name<decltype(x)>()).c_str()
 /// Utility to determine type of a variable
@@ -124,5 +123,7 @@ constexpr auto type_name()
   name.remove_suffix(suffix.size());
   return name;
 }
+
+}  // namespace zebral
 
 #endif  // LIGHTBOX_CAMERA_LOG_HPP_

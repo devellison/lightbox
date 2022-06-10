@@ -21,14 +21,17 @@ and can be built as part of the lightbox project or separately - look in
 
 - Install dependencies:
   - Windows:
-    - Visual Studio 2019 (CMake terminal)  (Others may work - 2022 in CI)
+    - Visual Studio 2019 (CMake)  (Others may work - 2022 in CI)
     - Set up OpenCV 4.5.5, including videoio, highgui, and core 
       (current binary release didn't seem to have these, but choco did)
     - Doxygen, graphviz, cmake-format (pip install), clang-format
   - Linux:
-    - Currently using ~gcc 9~ clang 11
+    - Currently using clang 12
     - Using OpenCV 4.2 from Ubuntu's distribution
-  - Build tools and deps for both:
+    - libfmt (on Linux) should be built and installed
+    - Google test is downloaded by the cmake currently
+  - Build tools and deps for both:    
+    - CMake v3.21 (you can get it from kitware for ubuntu)
     - Doxygen, graphviz, cpack, cmake-format (pip install), clang-format
 - Set up hardware (Web Camera, Feather RP2040, many many LEDs, relay boards, TBD)
     - I have a prototype wired, will doc and upgrade when time allows.

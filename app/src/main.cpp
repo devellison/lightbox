@@ -1,6 +1,5 @@
 #include <cstdlib>
 #include <iostream>
-#include <opencv2/opencv.hpp>
 #include "camera.hpp"
 #include "camera2cv.hpp"
 #include "camera_manager.hpp"

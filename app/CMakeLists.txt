@@ -5,8 +5,20 @@ project(
   VERSION ${CMAKE_PROJECT_VERSION}
   LANGUAGES CXX
 )
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenCV REQUIRED)
+
+if(MSVC)
+  add_compile_options(/W4 /WX /Zc:preprocessor)
+  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
+                 WindowsApp.lib
+  )
+else()
+  add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
+endif()
 
 # Add lightbox app (move these to separate library)
 set(SRC src/lightbox.cpp src/main.cpp)

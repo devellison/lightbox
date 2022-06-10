@@ -19,16 +19,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install libopencv-dev graphviz doxygen
+        sudo apt install build-essential manpages-dev software-properties-common
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+        sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'     
+        sudo apt update
+        sudo apt-get install cmake libopencv-dev graphviz doxygen clang-12
+    - name: Build fmtlib
+      run: |
+        git clone https://github.com/fmtlib/fmt.git externals/fmt
+        cmake -S externals/fmt -B externals/fmt/build
+        cmake --build externals/fmt/build --config Release
+        sudo cmake --build externals/fmt/build --config Release -t install
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_C_COMPILER=clang-12 -DCMAKE_CXX_COMPILER=clang++-12
 
     - name: Build
       # Build your program with the given configuration

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-pushd "${0%/*}"
+pushd "$(dirname "$0")" 
 echo "Formatting Code...."
 clang-format -i app/src/*.cpp
 clang-format -i test/*.cpp

@@ -16,6 +16,7 @@
 #include "camera_opencv.hpp"
 #include "camera_winrt.hpp"
 #include "errors.hpp"
+#include "find_files.hpp"
 #include "gtest/gtest.h"
 #include "log.hpp"
 #include "param.hpp"
@@ -105,11 +106,11 @@ TEST(CameraTests, CameraSanity)
     else
     {
       // No formats, skip it.
-      ZBA_LOG("No formats on camera %d, skipping...", idx);
+      ZBA_LOG("No formats on camera {}, skipping...", idx);
       idx++;
       continue;
     }
-    ZBA_LOG("Starting %s...", info.name.c_str());
+    ZBA_LOG("Starting {}...", info.name.c_str());
 
     int count = 0;
 
@@ -128,7 +129,7 @@ TEST(CameraTests, CameraSanity)
     std::this_thread::sleep_for(std::chrono::seconds(kWaitForFramesTime));
     camera->Stop();
     ASSERT_TRUE(count > 1);
-    ZBA_LOG("%d frames in a second", static_cast<int>(count));
+    ZBA_LOG("{} frames in a second", static_cast<int>(count));
 
     count = 0;
     // Direct call method - start it, then ask for new frames.
@@ -141,7 +142,7 @@ TEST(CameraTests, CameraSanity)
       count++;
     }
     ASSERT_TRUE(count > 1);
-    ZBA_LOG("Stopping %s", info.name.c_str());
+    ZBA_LOG("Stopping {}", info.name.c_str());
     camera->Stop();
 
     //-----
@@ -173,7 +174,7 @@ class ChangeWatch
     auto p = dynamic_cast<ParamRanged<int, double>*>(param);
     if (p && !raw_set)
     {
-      ZBA_LOG("Volume changed - %d (%f)", p->get(), p->getScaled());
+      ZBA_LOG("Volume changed - {} ({})", p->get(), p->getScaled());
       guiChanges++;
     }
   }
@@ -183,7 +184,7 @@ class ChangeWatch
     auto p = dynamic_cast<ParamRanged<int, double>*>(param);
     if (p && (raw_set))
     {
-      ZBA_LOG("Volume changed (device) - %d (%f)", p->get(), p->getScaled());
+      ZBA_LOG("Volume changed (device) - {} ({})", p->get(), p->getScaled());
       deviceChanges++;
     }
   }
@@ -258,6 +259,28 @@ TEST(CameraTest, AutoClose)
   std::cout << tempFile.string() << std::endl;
   ASSERT_TRUE(1 == std::filesystem::remove(tempFile));
   ASSERT_FALSE(std::filesystem::exists(tempFile));
+}
+
+TEST(CameraTests, FindFiles)
+{
+  ZBA_LOG("Current Dir: {}", std::filesystem::current_path().string().c_str());
+  /**
+   * {TODO} Need to set up some tests for find file for xplat.
+   */
+  /*
+  auto video_devs = FindFiles("/dev/", "video([0-9]+)");
+  for (auto curMatch : video_devs)
+  {
+   std::string path = curMatch.dir_entry.path().string();
+    ZBA_LOG("Checking {}", path.c_str());
+    for (size_t i = 0; i < curMatch.matches.size(); ++i)
+    {
+      ZBA_LOG("Match {}: {}",i,curMatch.matches[i].c_str());
+    }
+    int idx = std::stoi(curMatch.matches[1]);
+    ZBA_LOG("idx: {}",idx);
+  }
+  */
 }
 
 int main(int argc, char** argv)

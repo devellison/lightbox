@@ -2,7 +2,7 @@
 #
 # Custom hardware + software for an experimental computer vision lightbox.
 #
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.21)
 
 project(
   lightbox
@@ -23,7 +23,7 @@ include(CPack)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 include(GNUInstallDirs)
 include(CMakePrintHelpers)
