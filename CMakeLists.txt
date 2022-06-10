@@ -23,7 +23,7 @@ include(CPack)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 include(GNUInstallDirs)
 include(CMakePrintHelpers)

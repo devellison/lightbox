@@ -16,6 +16,7 @@
 #include "camera_opencv.hpp"
 #include "camera_winrt.hpp"
 #include "errors.hpp"
+#include "find_files.hpp"
 #include "gtest/gtest.h"
 #include "log.hpp"
 #include "param.hpp"
@@ -258,6 +259,28 @@ TEST(CameraTest, AutoClose)
   std::cout << tempFile.string() << std::endl;
   ASSERT_TRUE(1 == std::filesystem::remove(tempFile));
   ASSERT_FALSE(std::filesystem::exists(tempFile));
+}
+
+TEST(CameraTests, FindFiles)
+{
+  ZBA_LOG("Current Dir: %s",std::filesystem::current_path().string().c_str());
+  /**
+   * {TODO} Need to set up some tests for find file for xplat.
+   */
+  /*
+  auto video_devs = FindFiles("/dev/", "video([0-9]+)");
+  for (auto curMatch : video_devs)
+  {
+   std::string path = curMatch.dir_entry.path().string();
+    ZBA_LOG("Checking %s", path.c_str());
+    for (size_t i = 0; i < curMatch.matches.size(); ++i)
+    {
+      ZBA_LOG("Match %d: %s",i,curMatch.matches[i].c_str());
+    }
+    int idx = std::stoi(curMatch.matches[1]);
+    ZBA_LOG("idx: %d",idx);
+  }
+  */
 }
 
 int main(int argc, char** argv)

@@ -26,7 +26,7 @@ endif()
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 include(GNUInstallDirs)
 
@@ -55,6 +55,7 @@ set(SRC
     src/camera_v4l2.cpp
     src/camera_manager.cpp
     src/camera_info.cpp
+    src/find_files.cpp
     src/platform.cpp
     src/errors.cpp
     src/log.cpp
@@ -68,6 +69,7 @@ set(INC
     inc/camera_winrt.hpp
     inc/camera_v4l2.hpp
     inc/camera.hpp
+    inc/find_files.hpp
     inc/param.hpp
     inc/platform.hpp
     inc/errors.hpp
