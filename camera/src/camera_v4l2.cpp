@@ -14,9 +14,9 @@
 
 #include "auto_close.hpp"
 #include "errors.hpp"
+#include "find_files.hpp"
 #include "log.hpp"
 #include "platform.hpp"
-#include "find_files.hpp"
 
 namespace zebral
 {
@@ -125,7 +125,7 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
 
     std::string path = curMatch.dir_entry.path().string();
 
-    ZBA_LOG("Checking %s", path.c_str());
+    ZBA_LOG("Checking {}", path.c_str());
 
     v4l2_capability caps;
     memset(&caps, 0, sizeof(caps));

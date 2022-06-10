@@ -99,7 +99,9 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
       }
       catch (winrt::hresult_error const& ex)
       {
-        ZBA_ERR(winrt::to_string(ex.message()).c_str());
+        // ZBA_ERR("{}", winrt::to_string(ex.message()));
+        std::string err = winrt::to_string(ex.message());
+        zba_log(ZBA_LL::LL_ERROR, ZBA_LOCINFO, err);
         ZBA_THROW("Unable to initialize capture for device: " + info_.name,
                   Result::ZBA_CAMERA_OPEN_FAILED);
       }

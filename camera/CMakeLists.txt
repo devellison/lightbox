@@ -38,7 +38,7 @@ enable_testing()
 # High warning level, treat warnings as errors, compile as a console with
 # main().
 if(MSVC)
-  add_compile_options(/W4 /WX)
+  add_compile_options(/W4 /WX /Zc:preprocessor)
   set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
                  WindowsApp.lib
   )

@@ -106,11 +106,11 @@ TEST(CameraTests, CameraSanity)
     else
     {
       // No formats, skip it.
-      ZBA_LOG("No formats on camera %d, skipping...", idx);
+      ZBA_LOG("No formats on camera {}, skipping...", idx);
       idx++;
       continue;
     }
-    ZBA_LOG("Starting %s...", info.name.c_str());
+    ZBA_LOG("Starting {}...", info.name.c_str());
 
     int count = 0;
 
@@ -129,7 +129,7 @@ TEST(CameraTests, CameraSanity)
     std::this_thread::sleep_for(std::chrono::seconds(kWaitForFramesTime));
     camera->Stop();
     ASSERT_TRUE(count > 1);
-    ZBA_LOG("%d frames in a second", static_cast<int>(count));
+    ZBA_LOG("{} frames in a second", static_cast<int>(count));
 
     count = 0;
     // Direct call method - start it, then ask for new frames.
@@ -142,7 +142,7 @@ TEST(CameraTests, CameraSanity)
       count++;
     }
     ASSERT_TRUE(count > 1);
-    ZBA_LOG("Stopping %s", info.name.c_str());
+    ZBA_LOG("Stopping {}", info.name.c_str());
     camera->Stop();
 
     //-----
@@ -174,7 +174,7 @@ class ChangeWatch
     auto p = dynamic_cast<ParamRanged<int, double>*>(param);
     if (p && !raw_set)
     {
-      ZBA_LOG("Volume changed - %d (%f)", p->get(), p->getScaled());
+      ZBA_LOG("Volume changed - {} ({})", p->get(), p->getScaled());
       guiChanges++;
     }
   }
@@ -184,7 +184,7 @@ class ChangeWatch
     auto p = dynamic_cast<ParamRanged<int, double>*>(param);
     if (p && (raw_set))
     {
-      ZBA_LOG("Volume changed (device) - %d (%f)", p->get(), p->getScaled());
+      ZBA_LOG("Volume changed (device) - {} ({})", p->get(), p->getScaled());
       deviceChanges++;
     }
   }
@@ -263,7 +263,7 @@ TEST(CameraTest, AutoClose)
 
 TEST(CameraTests, FindFiles)
 {
-  ZBA_LOG("Current Dir: %s",std::filesystem::current_path().string().c_str());
+  ZBA_LOG("Current Dir: {}", std::filesystem::current_path().string().c_str());
   /**
    * {TODO} Need to set up some tests for find file for xplat.
    */
@@ -272,13 +272,13 @@ TEST(CameraTests, FindFiles)
   for (auto curMatch : video_devs)
   {
    std::string path = curMatch.dir_entry.path().string();
-    ZBA_LOG("Checking %s", path.c_str());
+    ZBA_LOG("Checking {}", path.c_str());
     for (size_t i = 0; i < curMatch.matches.size(); ++i)
     {
-      ZBA_LOG("Match %d: %s",i,curMatch.matches[i].c_str());
+      ZBA_LOG("Match {}: {}",i,curMatch.matches[i].c_str());
     }
     int idx = std::stoi(curMatch.matches[1]);
-    ZBA_LOG("idx: %d",idx);
+    ZBA_LOG("idx: {}",idx);
   }
   */
 }

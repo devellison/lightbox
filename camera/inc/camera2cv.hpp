@@ -3,7 +3,18 @@
 /// produces to OpenCV cv::Mat types for easy use.
 #ifndef LIGHTBOX_CAMERA_CAMERA2CV_HPP_
 #define LIGHTBOX_CAMERA_CAMERA2CV_HPP_
+
+#pragma warning(push)
+
+// Disable opencv compile warnings
+#if _WIN32
+#pragma warning(disable : 5054)
+#endif
+
 #include <opencv2/opencv.hpp>
+
+#pragma warning(pop)
+
 #include "camera_frame.hpp"
 #include "errors.hpp"
 
