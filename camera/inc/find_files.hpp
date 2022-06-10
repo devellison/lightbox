@@ -13,7 +13,7 @@ namespace zebral
 struct FindFilesMatch
 {
   std::filesystem::directory_entry dir_entry;
-  std::vector<std::string> matches;  
+  std::vector<std::string> matches;
 };
 
 /// Returns a list of files from the base directory that match the regex string.

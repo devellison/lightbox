@@ -19,7 +19,7 @@ std::vector<FindFilesMatch> FindFiles(const std::filesystem::path& base,
     if (std::regex_match(filename, fn_match, fn_regex))
     {
       std::vector<std::string> matches;
-      for(size_t i = 0; i < fn_match.size(); ++i)
+      for (size_t i = 0; i < fn_match.size(); ++i)
       {
         matches.emplace_back(fn_match[i].str());
       }

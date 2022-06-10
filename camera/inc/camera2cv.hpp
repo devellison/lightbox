@@ -4,16 +4,17 @@
 #ifndef LIGHTBOX_CAMERA_CAMERA2CV_HPP_
 #define LIGHTBOX_CAMERA_CAMERA2CV_HPP_
 
-#pragma warning(push)
-
 // Disable opencv compile warnings
 #if _WIN32
+#pragma warning(push)
 #pragma warning(disable : 5054)
 #endif
 
 #include <opencv2/opencv.hpp>
 
+#if _WIN32
 #pragma warning(pop)
+#endif
 
 #include "camera_frame.hpp"
 #include "errors.hpp"

@@ -9,9 +9,13 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <format>
+
 #include "platform.hpp"
 #include "store_error.hpp"
+
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#endif
 
 namespace zebral
 {
@@ -32,11 +36,6 @@ enum class ZBA_LL : int
   LL_INFO    ///< Info log level (stdout)
 };
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#endif
-
 /// Normal logging macro - goes to stdout
 /// \param msg - message and printf style formatting string
 /// \param ... - printf style arguments
@@ -48,10 +47,6 @@ enum class ZBA_LL : int
 
 /// Error log with errno
 #define ZBA_ERRNO(msg, ...) zba_log_errno(ZBA_LL::LL_ERROR, msg __VA_OPT__(, ) __VA_ARGS__)
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 /// This logs types that have an operator<< overload but not a string conversion.
 /// \param obj - object to log, must have operator<< overload
@@ -68,7 +63,7 @@ enum class ZBA_LL : int
 /// Core log function - add file support etc when needed.
 /// \param level - log level (LL_ERROR goes to std::cerr right now)
 /// \param logstr - fully composed log string.
-void zba_log_internal(ZBA_LL level, const std::string& logstr, const std::source_location& loc);
+void zba_log_internal(ZBA_LL level, const std::string& logstr, const zba_source_loc& loc);
 
 /// basic log function - use ZBA_LOG, ZBA_ERR, ZBA_LOGSS macros.
 /// \param level - log level. Right now, LL_ERROR goes to stderr, everything else to stdout
@@ -79,17 +74,17 @@ template <typename... Args>
 void zba_log(ZBA_LL level, const std::string& msg, Args&&... args)
 {
   StoreError err;
-  std::string msgstr = std::vformat(msg, std::make_format_args(args...));
-  zba_log_internal(level, msgstr, std::source_location::current());
+  std::string msgstr = zba_vformat(msg, zba_make_args(args...));
+  zba_log_internal(level, msgstr, zba_source_loc::current());
 }
 
 template <typename... Args>
 void zba_log_errno(ZBA_LL level, const std::string& msg, Args&&... args)
 {
   StoreError err;
-  std::string msgstr = std::vformat(msg, std::make_format_args(args...));
-  std::string outstr = msgstr + std::format(" ({}) ", err.ToString());
-  zba_log_internal(level, outstr, std::source_location::current());
+  std::string msgstr = zba_vformat(msg, zba_make_args(args...));
+  std::string outstr = msgstr + " (" + err.ToString() + ") ";
+  zba_log_internal(level, outstr, zba_source_loc::current());
 }
 
 /// stream log function - logs classes that have an operator<< overload but not an
@@ -102,7 +97,7 @@ void zba_logss(ZBA_LL level, T msg)
 {
   std::stringstream ss;
   ss << msg;
-  zba_log_internal(level, ss.str(), std::source_location::current());
+  zba_log_internal(level, ss.str(), zba_source_loc::current());
 }
 
 #define ZBA_TYPE_NAME(x) std::string(type_name<decltype(x)>()).c_str()

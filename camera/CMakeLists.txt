@@ -2,7 +2,7 @@
 #
 # Provides cross-platform cameras with control options and hardware
 # identification
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.21)
 
 project(
   zebralcam
@@ -27,16 +27,8 @@ endif()
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_CXX_STANDARD 20)
-
 include(GNUInstallDirs)
 
-find_package(Threads REQUIRED)
-find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
-include(GoogleTest)
-enable_testing()
-
-# High warning level, treat warnings as errors, compile as a console with
-# main().
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)
   set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
@@ -44,7 +36,14 @@ if(MSVC)
   )
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
+  find_package(fmt REQUIRED)
+  set(EXTRA_LIBS fmt::fmt)
 endif()
+
+find_package(Threads REQUIRED)
+find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
+include(GoogleTest)
+enable_testing()
 
 # Add camera library
 
@@ -79,12 +78,10 @@ set(INC
 
 add_library(${PROJECT_NAME} ${SRC} ${INC})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+target_include_directories(${PROJECT_NAME} PUBLIC inc ${fmt_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${EXTRA_LIBS} Threads::Threads)
 
-target_include_directories(${PROJECT_NAME} PUBLIC inc)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTRA_LIBS} Threads::Threads)
-
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 add_subdirectory(test)
 # Only do our own doxygen stuff if we're being run directly.

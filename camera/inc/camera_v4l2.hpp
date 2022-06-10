@@ -19,7 +19,7 @@ class CameraV4L2 : public Camera
   // Enumerate V4L2 devices
   static std::vector<CameraInfo> Enumerate();
 
- protected:  
+ protected:
   /// Loops until exiting_ is true grabbing frames
   void CaptureThread();
 

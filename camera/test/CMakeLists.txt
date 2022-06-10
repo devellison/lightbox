@@ -1,6 +1,9 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.21)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_CXX_STANDARD 20)
+include(GNUInstallDirs)
 
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)
@@ -10,7 +13,8 @@ if(MSVC)
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
   find_package(OpenCV REQUIRED)
-  set(EXTRA_LIBS ${OpenCV_LIBS})
+  find_package(fmt REQUIRED)
+  set(EXTRA_LIBS ${OpenCV_LIBS} fmt::fmt)
 endif()
 
 # Setup gtest Note - this seems kinda slow/repeatedly run from VSCode.  Fix.

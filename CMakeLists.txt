@@ -2,7 +2,7 @@
 #
 # Custom hardware + software for an experimental computer vision lightbox.
 #
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.21)
 
 project(
   lightbox
