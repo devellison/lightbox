@@ -5,6 +5,8 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_CXX_STANDARD 20)
 include(GNUInstallDirs)
 
+find_package(OpenMP)
+
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)
   set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
@@ -15,6 +17,10 @@ else()
   find_package(OpenCV REQUIRED)
   find_package(fmt REQUIRED)
   set(EXTRA_LIBS ${OpenCV_LIBS} fmt::fmt)
+endif()
+
+if(OpenMP_CXX_FOUND)
+  set(EXTRA_LIBS ${EXTRA_LIBS} OpenMP::OpenMP_CXX)
 endif()
 
 # Setup gtest Note - this seems kinda slow/repeatedly run from VSCode.  Fix.

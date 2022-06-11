@@ -10,6 +10,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(OpenCV REQUIRED)
+find_package(OpenMP)
 
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)
@@ -18,6 +19,10 @@ if(MSVC)
   )
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
+endif()
+
+if(OpenMP_CXX_FOUND)
+  set(EXTRA_LIBS ${EXTRA_LIBS} OpenMP::OpenMP_CXX)
 endif()
 
 # Add lightbox app (move these to separate library)

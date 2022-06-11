@@ -11,6 +11,19 @@
 
 namespace zebral
 {
+int ChannelsFromFourCC(const std::string& fmt_format);
+int BytesPPPCFromFourCC(const std::string& fmt_format);
+
+/// FourCC for arbitrary incoming strings.
+uint32_t FourCCToUInt32(const std::string& fmt_format);
+
+/// FourCC for statics (for switch/case and the like)
+constexpr uint32_t FOURCCTOUINT32(char const format[5])
+{
+  return (format[0]) | (format[1] << 8) | (format[2] << 16) | (format[3] << 24);
+  // return (format[0] << 24) | (format[1] << 16) | (format[2] << 8) | format[3];
+}
+
 /// Generic OSHandle for creation when needed. Using this so we don't have to pollute everything
 typedef void* OSHANDLE;
 
@@ -21,16 +34,14 @@ struct FormatInfo
   /// \param fmt_width Width in pixels
   /// \param fmt_height Height in pixels
   /// \param fmt_fps Expected frames per second
-  /// \param fmt_channels Num channels
-  /// \param fmt_bytespppc Bytes per pixel per channel
   /// \param fmt_format Format string (FourCC usually)
-  FormatInfo(int fmt_width = 0, int fmt_height = 0, float fmt_fps = 0.0f, int fmt_channels = 0,
-             int fmt_bytespppc = 0, const std::string& fmt_format = "")
+  FormatInfo(int fmt_width = 0, int fmt_height = 0, float fmt_fps = 0.0f,
+             const std::string& fmt_format = "")
       : width(fmt_width),
         height(fmt_height),
         fps(fmt_fps),
-        channels(fmt_channels),
-        bytespppc(fmt_bytespppc),
+        channels(ChannelsFromFourCC(fmt_format)),
+        bytespppc(BytesPPPCFromFourCC(fmt_format)),
         format(fmt_format)
   {
   }

@@ -1,6 +1,8 @@
 #include "camera_info.hpp"
 #include <cmath>
 #include <limits>
+#include "errors.hpp"
+#include "log.hpp"
 
 namespace zebral
 {
@@ -81,6 +83,59 @@ bool FormatInfo::Matches(const FormatInfo& f) const
       (f.fps > std::numeric_limits<float>::epsilon()))
     return false;
   return true;
+}
+
+uint32_t FourCCToUInt32(const std::string& fmt_format)
+{
+  if (fmt_format.empty()) return 0;
+  ZBA_ASSERT(fmt_format.length() == 4, "Invalid frame format string.");
+  return *reinterpret_cast<const uint32_t*>(fmt_format.data());
+}
+
+int ChannelsFromFourCC(const std::string& fmt_format)
+{
+  switch (FourCCToUInt32(fmt_format))
+  {
+    case FOURCCTOUINT32("YUY2"):
+      return 3;
+    case FOURCCTOUINT32("NV12"):
+      return 3;
+    case FOURCCTOUINT32("RGB "):
+    case FOURCCTOUINT32("BGR "):
+      return 3;
+    case FOURCCTOUINT32("RGBA"):
+    case FOURCCTOUINT32("BGRA"):
+    case FOURCCTOUINT32("RGBT"):
+    case FOURCCTOUINT32("BGRT"):
+      return 4;
+    case 0:
+      return 0;
+    default:
+      ZBA_THROW("Unsupported format", Result::ZBA_UNSUPPORTED_FMT);
+  }
+}
+
+int BytesPPPCFromFourCC(const std::string& fmt_format)
+{
+  switch (FourCCToUInt32(fmt_format))
+  {
+    case FOURCCTOUINT32("YUY2"):
+      return 1;
+    case FOURCCTOUINT32("NV12"):
+      return 1;
+    case FOURCCTOUINT32("RGB "):
+    case FOURCCTOUINT32("BGR "):
+      return 1;
+    case FOURCCTOUINT32("RGBA"):
+    case FOURCCTOUINT32("BGRA"):
+    case FOURCCTOUINT32("RGBT"):
+    case FOURCCTOUINT32("BGRT"):
+      return 1;
+    case 0:
+      return 0;
+    default:
+      ZBA_THROW("Unsupported format", Result::ZBA_UNSUPPORTED_FMT);
+  }
 }
 
 }  // namespace zebral

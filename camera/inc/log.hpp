@@ -39,17 +39,18 @@ enum class ZBA_LL : int
 /// \param msg - message and printf style formatting string
 /// \param ... - printf style arguments
 
-#define ZBA_LOG(msg, ...) zba_log(ZBA_LL::LL_INFO, msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_TIMER(name, msg, ...) zba_stack_timer name(zba_source_loc::current(),msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_LOG(msg, ...) zba_log(ZBA_LL::LL_INFO, zba_source_loc::current(),msg __VA_OPT__(, ) __VA_ARGS__)
 
 /// Error log
-#define ZBA_ERR(msg, ...) zba_log(ZBA_LL::LL_ERROR, msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_ERR(msg, ...) zba_log(ZBA_LL::LL_ERROR, zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
 
 /// Error log with errno
-#define ZBA_ERRNO(msg, ...) zba_log_errno(ZBA_LL::LL_ERROR, msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_ERRNO(msg, ...) zba_log_errno(ZBA_LL::LL_ERROR, zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
 
 /// This logs types that have an operator<< overload but not a string conversion.
 /// \param obj - object to log, must have operator<< overload
-#define ZBA_LOGSS(obj) zba_logss(ZBA_LL::LL_INFO, obj)
+#define ZBA_LOGSS(obj) zba_logss(ZBA_LL::LL_INFO, zba_source_loc::current(), obj)
 
 /// Assert with message. Right now, works in both debug and release modes.
 /// May add removal later?  Also a retry for debugging like CAT had?
@@ -70,33 +71,65 @@ void zba_log_internal(ZBA_LL level, const std::string& logstr, const zba_source_
 /// \param msg - log message (format-style)
 /// \param ... - format-style args
 template <typename... Args>
-void zba_log(ZBA_LL level, const std::string& msg, Args&&... args)
+void zba_log(ZBA_LL level,const zba_source_loc& loc, const std::string& msg, Args&&... args)
 {
   StoreError err;
   std::string msgstr = zba_vformat(msg, zba_make_args(args...));
-  zba_log_internal(level, msgstr, zba_source_loc::current());
+  zba_log_internal(level, msgstr, loc);
 }
 
 template <typename... Args>
-void zba_log_errno(ZBA_LL level, const std::string& msg, Args&&... args)
+void zba_log_errno(ZBA_LL level,const zba_source_loc& loc, const std::string& msg, Args&&... args)
 {
   StoreError err;
   std::string msgstr = zba_vformat(msg, zba_make_args(args...));
   std::string outstr = msgstr + " (" + err.ToString() + ") ";
-  zba_log_internal(level, outstr, zba_source_loc::current());
+  zba_log_internal(level, outstr, loc);
 }
 
+class zba_stack_timer
+{
+ public:
+  template <typename... Args>
+  zba_stack_timer(const zba_source_loc& loc, const std::string& msg, Args&&... args)
+      : start_(zba_now()),
+        start_loc_(loc)
+  {
+    log_msg_ = zba_vformat(msg, zba_make_args(args...));
+    zba_log_internal(ZBA_LL::LL_INFO, log_msg_ + ": START", start_loc_);
+  }
+
+  double log(const std::string& msg)
+  {
+    auto elapsed_time = zba_elapsed_sec(start_);
+    zba_log_internal(ZBA_LL::LL_INFO,
+                     log_msg_ + ": " + msg + " (" + std::to_string(elapsed_time) + ")", start_loc_);
+    return elapsed_time;
+  }
+
+  ~zba_stack_timer()
+  {
+    auto elapsed_time = zba_elapsed_sec(start_);
+    zba_log_internal(ZBA_LL::LL_INFO, log_msg_ + ": END (" + std::to_string(elapsed_time) + ")",
+                     start_loc_);
+  }
+
+ protected:
+  std::string log_msg_;
+  ZBA_TSTAMP start_;
+  zba_source_loc start_loc_;
+};
 /// stream log function - logs classes that have an operator<< overload but not an
 /// easy const char* out.
 /// \tparam T - class type to log
 /// \param level - log level
 /// \param msg - class instance to log
 template <class T>
-void zba_logss(ZBA_LL level, T msg)
+void zba_logss(ZBA_LL level,const zba_source_loc& loc, T msg)
 {
   std::stringstream ss;
   ss << msg;
-  zba_log_internal(level, ss.str(), zba_source_loc::current());
+  zba_log_internal(level, ss.str(), loc);
 }
 
 #define ZBA_TYPE_NAME(x) std::string(type_name<decltype(x)>()).c_str()

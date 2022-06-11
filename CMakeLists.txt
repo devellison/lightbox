@@ -33,6 +33,7 @@ enable_testing()
 find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
+find_package(OpenMP)
 
 # High warning level, treat warnings as errors, compile as a console with
 # main().

@@ -88,20 +88,17 @@ CameraV4L2::CameraV4L2(const CameraInfo& info) : Camera(info)
       {
         break;
       }
-      std::string format(reinterpret_cast<char*>(&frameSize.pixel_format), 4);
+      std::string format_str(reinterpret_cast<char*>(&frameSize.pixel_format), 4);
       float fps = 0.0f;
       /// {TODO} investigate stepwise sizes. For now, ignore them.
       if (V4L2_FRMSIZE_TYPE_DISCRETE == frameSize.type)
       {
-        int width     = frameSize.discrete.width;
-        int height    = frameSize.discrete.height;
-        int channels  = 0;
-        int bytespppc = 0;
-
-        FormatInfo fmt(width, height, fps, channels, bytespppc, format);
-        if (IsFormatSupported(fmt))
+        int width  = frameSize.discrete.width;
+        int height = frameSize.discrete.height;
+        if (IsFormatSupported(format_str))
         {
-          info_.AddFormat(fmt);
+          FormatInfo fmt_info(width, height, fps, format_str);
+          info_.AddFormat(fmt_info);
         }
       }
     }
@@ -158,8 +155,8 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
 
 FormatInfo CameraV4L2::OnSetFormat(const FormatInfo&)  // info)
 {
-  FormatInfo fmt;
-  return fmt;
+  FormatInfo fmt_info;
+  return fmt_info;
 }
 
 }  // namespace zebral

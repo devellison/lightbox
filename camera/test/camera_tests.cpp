@@ -91,8 +91,11 @@ TEST(CameraTests, CameraSanity)
     ASSERT_FALSE(curCam.bus.empty());
 
     // Create each camera and dump its modes.
-    auto camera = cmgr.Create(camList[idx]);
+    ZBA_TIMER(camera_timer,std::string("Camera {}"), curCam.name);
+    auto camera = cmgr.Create(curCam);
     auto info   = camera->GetCameraInfo();
+
+    camera_timer.log("Created");
 
     ZBA_LOGSS(info);
 
@@ -110,6 +113,8 @@ TEST(CameraTests, CameraSanity)
       idx++;
       continue;
     }
+    camera_timer.log("Format set");
+
     ZBA_LOG("Starting {}...", info.name.c_str());
 
     int count = 0;

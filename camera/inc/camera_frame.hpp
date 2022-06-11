@@ -56,6 +56,33 @@ class CameraFrame
     }
   }
 
+  void clear()
+  {
+    reset(0, 0, 0, 0, 0, 0, nullptr);
+  }
+
+  void reset(int width, int height, int channels, int bytesPerChannel, bool is_signed,
+             bool is_floating_point, const uint8_t* data = nullptr)
+  {
+    width_             = width;
+    height_            = height;
+    channels_          = channels;
+    bytes_per_channel_ = bytesPerChannel;
+    is_signed_         = is_signed;
+    is_floating_       = is_floating_point;
+
+    /// {TODO} won't work with stepped/padded data.
+    size_t dataSize = width_ * height_ * channels_ * bytes_per_channel_;
+    if (data)
+    {
+      data_.assign((data), (data + dataSize));
+    }
+    else
+    {
+      data_.resize(dataSize);
+    }
+  }
+
   /// Returns true if the data buffer has no data.
   /// \return true if frame is empty
   bool empty() const

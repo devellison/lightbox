@@ -29,6 +29,8 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_CXX_STANDARD 20)
 include(GNUInstallDirs)
 
+find_package(OpenMP)
+
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)
   set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
@@ -38,6 +40,10 @@ else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
   find_package(fmt REQUIRED)
   set(EXTRA_LIBS fmt::fmt)
+endif()
+
+if(OpenMP_CXX_FOUND)
+  set(EXTRA_LIBS ${EXTRA_LIBS} OpenMP::OpenMP_CXX)
 endif()
 
 find_package(Threads REQUIRED)
@@ -59,6 +65,7 @@ set(SRC
     src/errors.cpp
     src/log.cpp
     src/store_error.cpp
+    src/convert.cpp
 )
 
 set(INC
@@ -74,13 +81,13 @@ set(INC
     inc/errors.hpp
     inc/log.hpp
     inc/store_error.hpp
+    inc/convert.hpp
 )
 
 add_library(${PROJECT_NAME} ${SRC} ${INC})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PUBLIC inc ${fmt_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${EXTRA_LIBS} Threads::Threads)
-
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 add_subdirectory(test)

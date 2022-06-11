@@ -94,8 +94,8 @@ class Camera
   /// If false is returned, it won't be enumerated in the camera's available
   /// options.
   ///
-  /// Right now, just ignoring MJPG.
-  virtual bool IsFormatSupported(const FormatInfo& fmt);
+  /// Right now, just allowing nv12 and yuy2
+  virtual bool IsFormatSupported(const std::string& format);
 
   /// Handles received frame by updating last_frame_ and calling callback if available.
   /// Inheriting classes should call this when they get a frame!
@@ -122,6 +122,7 @@ class Camera
   bool exiting_;                              ///< Exiting flag for capture thread (if any)
   bool running_;                              ///< Running flag - true if camera started
   mutable std::mutex frame_mutex_;            ///< Lock on last_frame
+  CameraFrame cur_frame_;                     ///< Last frame received
   CameraFrame last_frame_;                    ///< Last frame received
   TimeStamp last_timestamp_;                  ///< Timestamp of last frame received
   std::condition_variable cv_;                ///< Condition var for frame notification

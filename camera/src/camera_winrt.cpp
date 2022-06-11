@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <regex>
 
+#include "convert.hpp"
 #include "errors.hpp"
 #include "log.hpp"
 #include "platform.hpp"
@@ -99,9 +100,7 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
       }
       catch (winrt::hresult_error const& ex)
       {
-        // ZBA_ERR("{}", winrt::to_string(ex.message()));
-        std::string err = winrt::to_string(ex.message());
-        zba_log(ZBA_LL::LL_ERROR, ZBA_LOCINFO, err);
+        ZBA_ERR(winrt::to_string(ex.message()));
         ZBA_THROW("Unable to initialize capture for device: " + info_.name,
                   Result::ZBA_CAMERA_OPEN_FAILED);
       }
@@ -134,9 +133,9 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
       // Skip non-Video formats.
       auto major = curFormat.MajorType();
       if (major != L"Video") continue;
-      auto format = MediaFrameFormatToFormat(curFormat);
-      if (IsFormatSupported(format))
+      if (IsFormatSupported(winrt::to_string(curFormat.Subtype())))
       {
+        auto format = MediaFrameFormatToFormat(curFormat);
         info_.AddFormat(format);
       }
     }
@@ -242,6 +241,7 @@ FormatInfo CameraWinRt::OnSetFormat(const FormatInfo& info)
       // Skip non-Video formats.
       auto major = curFormat.MajorType();
       if (major != L"Video") continue;
+      if (!IsFormatSupported(winrt::to_string(curFormat.Subtype()))) continue;
 
       auto formatInfo = MediaFrameFormatToFormat(curFormat);
 
@@ -275,7 +275,7 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
   auto frameRate = curFormat.FrameRate();
   float fps =
       static_cast<float>(frameRate.Numerator()) / static_cast<float>(frameRate.Denominator());
-  return FormatInfo(w, h, fps, 0, 0, winrt::to_string(subType));
+  return FormatInfo(w, h, fps, winrt::to_string(subType));
 }
 
 CameraWinRt::Impl::Impl(CameraWinRt* parent)
@@ -308,31 +308,53 @@ void CameraWinRt::Impl::OnFrame(const Windows::Media::Capture::Frames::MediaFram
       BitmapBuffer bmpBuffer = bitmap.LockBuffer(BitmapBufferAccessMode::Read);
 
       auto plane_desc = bmpBuffer.GetPlaneDescription(0);
-
-      /// {TODO} Hardcoded bgra8, and doesn't account for padded stride or encodings.
-      /// Right now if we switch to undecoded, we'll still have the original-sized
-      /// buffer and it will display completely wrong.
-      int width             = this->parent_.current_mode_->width;
-      int height            = this->parent_.current_mode_->height;
-      int channels          = 4;
-      int bytes_per_channel = 1;
-      bool is_signed        = false;
-      bool is_floating      = false;
-      CameraFrame cameraFrame(width, height, channels, bytes_per_channel, is_signed, is_floating);
+      int src_stride  = plane_desc.Stride;
 
       IMemoryBufferReference ref = bmpBuffer.CreateReference();
+      // The system is doing the decoding for us.
+      if (parent_.decode_)
       {
-        auto interop = ref.as<IMemoryBufferByteAccess>();
-
+        /// {TODO} Hardcoded bgra8, and doesn't account for padded stride or encodings.
+        /// Right now if we switch to undecoded, we'll still have the original-sized
+        /// buffer and it will display completely wrong.
         uint8_t* dataPtr = nullptr;
         uint32_t dataLen = 0;
+        auto interop     = ref.as<IMemoryBufferByteAccess>();
         check_hresult(interop->GetBuffer(&dataPtr, &dataLen));
-        memcpy(cameraFrame.data(), dataPtr,
-               min(static_cast<size_t>(dataLen), cameraFrame.data_size()));
+
+        BGRAToBGRFrame(dataPtr, parent_.cur_frame_, src_stride);
       }
+      else
+      {
+        // For now we'll try decoding it...
+        // We'll also want a raw option.
+        uint8_t* dataPtr = nullptr;
+        uint32_t dataLen = 0;
+        auto interop     = ref.as<IMemoryBufferByteAccess>();
+        check_hresult(interop->GetBuffer(&dataPtr, &dataLen));
+
+        auto srcPtr = dataPtr;
+        // my system stats
+        // (800, 448) is about 0.026s in debug mode, 0.0018s in release mode (no parallel, pure cpp)
+        if (format.format == "YUY2")
+        {
+          // ZBA_TIMER(timer, "YUY2ToBGRFrame");
+          YUY2ToBGRFrame(srcPtr, parent_.cur_frame_, src_stride);
+        }
+        else if (format.format == "NV12")
+        {
+          // ZBA_TIMER(timer, "NV12ToBGRFrame");
+          NV12ToBGRFrame(srcPtr, parent_.cur_frame_, src_stride);
+        }
+        else
+        {
+          ZBA_ERR("Don't currently have a converter for {}", format.format);
+        }
+      }
+
       ref.Close();
       bmpBuffer.Close();
-      parent_.OnFrameReceived(cameraFrame);
+      parent_.OnFrameReceived(parent_.cur_frame_);
     }
     else
     {

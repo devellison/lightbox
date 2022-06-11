@@ -113,6 +113,9 @@ void Camera::SetFormat(const FormatInfo& info, bool decode)
       decode_       = decode;
       auto setFmt   = OnSetFormat(checkFormat);
       current_mode_ = std::make_unique<FormatInfo>(setFmt);
+      // {TODO} support signed/floats here.
+      cur_frame_.reset(setFmt.width, setFmt.height, setFmt.channels, setFmt.bytespppc, false,
+                       false);
       ZBA_LOG("Mode for camera {} set. Decode: {}", info_.name, decode_);
       ZBA_LOGSS(*current_mode_.get());
       return;
@@ -130,10 +133,16 @@ std::optional<FormatInfo> Camera::GetFormat()
   return *current_mode_.get();
 }
 
-bool Camera::IsFormatSupported(const FormatInfo& fmt)
+bool Camera::IsFormatSupported(const std::string& fourcc)
 {
-  if (fmt.format == "MJPG") return false;
-  return true;
+  /// {TODO} These are ones we have reference (SLOW) converters for
+  /// so far.  Need to get cameras with other modes....
+  /// Like, especially Bayer modes, although most I've used with those
+  /// had their own SDKs....
+  /// Right now, the only other thing I have is MJPG.
+  if (fourcc == "NV12") return true;
+  if (fourcc == "YUY2") return true;
+  return false;
 }
 
 }  // namespace zebral
