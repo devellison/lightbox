@@ -4,6 +4,12 @@
 
 namespace zebral
 {
+// {TODO} Fix this.
+static ZBA_LL gLogLevel = ZBA_LL::LL_INFO;
+void ZBA_SetLogLevel(ZBA_LL logLevel)
+{
+  gLogLevel = logLevel;
+}
 void zba_log_internal(ZBA_LL level, const std::string& logstr, const zba_source_loc& loc)
 {
   // yuck!
@@ -12,6 +18,11 @@ void zba_log_internal(ZBA_LL level, const std::string& logstr, const zba_source_
   // compose the rest of the log string
   std::string stampstr = zba_format("[{}] [{}] {}({}) : ", zba_local_time(zba_now()), thread_id,
                                     loc.file_name(), loc.line());
+
+  if (gLogLevel < level)
+  {
+    return;
+  }
 
   // Output, right now just to stdout/stderr
   if (level == ZBA_LL::LL_ERROR)

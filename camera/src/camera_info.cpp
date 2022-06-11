@@ -111,7 +111,8 @@ int ChannelsFromFourCC(const std::string& fmt_format)
     case 0:
       return 0;
     default:
-      ZBA_THROW("Unsupported format", Result::ZBA_UNSUPPORTED_FMT);
+      ZBA_LOG("Unsupported format");
+      return 0;
   }
 }
 
@@ -134,7 +135,8 @@ int BytesPPPCFromFourCC(const std::string& fmt_format)
     case 0:
       return 0;
     default:
-      ZBA_THROW("Unsupported format", Result::ZBA_UNSUPPORTED_FMT);
+      ZBA_LOG("Unsupported format");
+      return 0;
   }
 }
 

@@ -69,6 +69,10 @@ class Camera
   /// \returns CameraInfo struct containing updated camera info.
   CameraInfo GetCameraInfo();
 
+  /// Retrieves a list of all modes - even those we don't support -
+  /// that are available on a camera.
+  virtual std::vector<FormatInfo> GetAllModes();
+
   /// Sets the camera mode (should be done before calling Start()!)
   /// {TODO}: Undecoded buffers is a work-in-progress, as is decoding
   /// the buffers ourselves in the library.
@@ -116,6 +120,8 @@ class Camera
   /// \returns FormatInfo - Fully filled out format details of the mode actually set.
   virtual FormatInfo OnSetFormat(const FormatInfo& mode) = 0;
 
+  void AddAllModeEntry(const FormatInfo& mode);
+
   CameraInfo info_;                           ///< Camera info, used for creation
   std::unique_ptr<FormatInfo> current_mode_;  ///< Current mode, null if unset.
   FrameCallback callback_;                    ///< Optional frame callback
@@ -129,6 +135,7 @@ class Camera
   bool decode_;                               ///< If true (default), decodes to RGB or V.
                                               ///< Otherwise, buffers are left in their
                                               ///< original state from the system.
+  std::vector<FormatInfo> all_modes_;         ///< All modes available, even those we don't support
 };
 
 }  // namespace zebral

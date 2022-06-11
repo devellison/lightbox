@@ -95,11 +95,12 @@ CameraV4L2::CameraV4L2(const CameraInfo& info) : Camera(info)
       {
         int width  = frameSize.discrete.width;
         int height = frameSize.discrete.height;
+        FormatInfo fmt_info(width, height, fps, format_str);
         if (IsFormatSupported(format_str))
         {
-          FormatInfo fmt_info(width, height, fps, format_str);
           info_.AddFormat(fmt_info);
         }
+        AddAllModeEntry(fmt_info);
       }
     }
   }

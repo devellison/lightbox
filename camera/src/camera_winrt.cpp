@@ -133,11 +133,12 @@ CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
       // Skip non-Video formats.
       auto major = curFormat.MajorType();
       if (major != L"Video") continue;
+      auto format = MediaFrameFormatToFormat(curFormat);
       if (IsFormatSupported(winrt::to_string(curFormat.Subtype())))
       {
-        auto format = MediaFrameFormatToFormat(curFormat);
         info_.AddFormat(format);
       }
+      AddAllModeEntry(format);
     }
   }
 }

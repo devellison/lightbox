@@ -32,9 +32,9 @@ class CameraOpenCV : public Camera
 
   /// No SetFormat is current supported - it'll work on some cameras though via properties,
   /// So could be useful? But OpenCV is what I'm trying to replace for an API, so...
-  FormatInfo OnSetFormat(const FormatInfo& fmt) override
+  FormatInfo OnSetFormat(const FormatInfo& format) override
   {
-    return fmt;
+    return format;
   }
 
   class Impl;

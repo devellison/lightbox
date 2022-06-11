@@ -91,6 +91,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${EXTRA_LIBS} Threads::Threads)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 add_subdirectory(test)
+add_subdirectory(utils)
 # Only do our own doxygen stuff if we're being run directly.
 
 set(DOXYGEN_FILE_PATTERNS

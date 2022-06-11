@@ -31,22 +31,29 @@ static constexpr int ZBA_LOG_PRECISION = 4;
 /// 0 goes to std::cerr, others to std::cout right now.
 enum class ZBA_LL : int
 {
+  LL_NONE,
   LL_ERROR,  ///< Error Log level (stderr)
   LL_INFO    ///< Info log level (stdout)
 };
+
+void ZBA_SetLogLevel(ZBA_LL logLevel);
 
 /// Normal logging macro - goes to stdout
 /// \param msg - message and printf style formatting string
 /// \param ... - printf style arguments
 
-#define ZBA_TIMER(name, msg, ...) zba_stack_timer name(zba_source_loc::current(),msg __VA_OPT__(, ) __VA_ARGS__)
-#define ZBA_LOG(msg, ...) zba_log(ZBA_LL::LL_INFO, zba_source_loc::current(),msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_TIMER(name, msg, ...) \
+  zba_stack_timer name(zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_LOG(msg, ...) \
+  zba_log(ZBA_LL::LL_INFO, zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
 
 /// Error log
-#define ZBA_ERR(msg, ...) zba_log(ZBA_LL::LL_ERROR, zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_ERR(msg, ...) \
+  zba_log(ZBA_LL::LL_ERROR, zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
 
 /// Error log with errno
-#define ZBA_ERRNO(msg, ...) zba_log_errno(ZBA_LL::LL_ERROR, zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
+#define ZBA_ERRNO(msg, ...) \
+  zba_log_errno(ZBA_LL::LL_ERROR, zba_source_loc::current(), msg __VA_OPT__(, ) __VA_ARGS__)
 
 /// This logs types that have an operator<< overload but not a string conversion.
 /// \param obj - object to log, must have operator<< overload
@@ -71,7 +78,7 @@ void zba_log_internal(ZBA_LL level, const std::string& logstr, const zba_source_
 /// \param msg - log message (format-style)
 /// \param ... - format-style args
 template <typename... Args>
-void zba_log(ZBA_LL level,const zba_source_loc& loc, const std::string& msg, Args&&... args)
+void zba_log(ZBA_LL level, const zba_source_loc& loc, const std::string& msg, Args&&... args)
 {
   StoreError err;
   std::string msgstr = zba_vformat(msg, zba_make_args(args...));
@@ -79,7 +86,7 @@ void zba_log(ZBA_LL level,const zba_source_loc& loc, const std::string& msg, Arg
 }
 
 template <typename... Args>
-void zba_log_errno(ZBA_LL level,const zba_source_loc& loc, const std::string& msg, Args&&... args)
+void zba_log_errno(ZBA_LL level, const zba_source_loc& loc, const std::string& msg, Args&&... args)
 {
   StoreError err;
   std::string msgstr = zba_vformat(msg, zba_make_args(args...));
@@ -125,7 +132,7 @@ class zba_stack_timer
 /// \param level - log level
 /// \param msg - class instance to log
 template <class T>
-void zba_logss(ZBA_LL level,const zba_source_loc& loc, T msg)
+void zba_logss(ZBA_LL level, const zba_source_loc& loc, T msg)
 {
   std::stringstream ss;
   ss << msg;

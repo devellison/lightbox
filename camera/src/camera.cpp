@@ -141,8 +141,22 @@ bool Camera::IsFormatSupported(const std::string& fourcc)
   /// had their own SDKs....
   /// Right now, the only other thing I have is MJPG.
   if (fourcc == "NV12") return true;
+#if _WIN32
   if (fourcc == "YUY2") return true;
+#else
+  if (fourcc == "YUYV") return true;
+#endif
   return false;
+}
+
+void Camera::AddAllModeEntry(const FormatInfo& format)
+{
+  all_modes_.emplace_back(format);
+}
+
+std::vector<FormatInfo> Camera::GetAllModes()
+{
+  return all_modes_;
 }
 
 }  // namespace zebral
