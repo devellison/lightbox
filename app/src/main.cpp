@@ -26,10 +26,6 @@ int main(int argc, char* argv[])
   std::cout << "Scanning cameras..." << std::endl;
   CameraManager camMgr;
   auto camList = camMgr.Enumerate();
-  for (const auto& curCam : camList)
-  {
-    ZBA_LOGSS(curCam);
-  }
 
   // Check if we have enough arguments
   if (argc < 3)

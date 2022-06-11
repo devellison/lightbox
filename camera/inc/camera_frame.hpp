@@ -45,7 +45,7 @@ class CameraFrame
         is_floating_(is_floating_point)
   {
     /// {TODO} won't work with stepped/padded data.
-    size_t dataSize = width_ * height_ * channels_ * bytes_per_channel_;
+    size_t dataSize = static_cast<size_t>(width_) * height_ * channels_ * bytes_per_channel_;
     if (data)
     {
       data_.assign((data), (data + dataSize));
@@ -72,7 +72,7 @@ class CameraFrame
     is_floating_       = is_floating_point;
 
     /// {TODO} won't work with stepped/padded data.
-    size_t dataSize = width_ * height_ * channels_ * bytes_per_channel_;
+    size_t dataSize = static_cast<size_t>(width_) * height_ * channels_ * bytes_per_channel_;
     if (data)
     {
       data_.assign((data), (data + dataSize));

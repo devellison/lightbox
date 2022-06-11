@@ -2,7 +2,7 @@
 #
 # Provides cross-platform cameras with control options and hardware
 # identification
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.20)
 
 project(
   zebralcam
@@ -33,9 +33,8 @@ find_package(OpenMP)
 
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)
-  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib Mfreadwrite.lib Mfuuid.lib
-                 WindowsApp.lib
-  )
+  set(EXTRA_LIBS Strmiids.lib Mfplat.lib Mf.lib)
+  # add_link_options(/DELAYLOAD:MF.lib)
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-c11-extensions)
   find_package(fmt REQUIRED)

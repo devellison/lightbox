@@ -2,7 +2,7 @@
 #
 # Custom hardware + software for an experimental computer vision lightbox.
 #
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.20)
 
 project(
   lightbox
@@ -31,7 +31,7 @@ include(GoogleTest)
 enable_testing()
 
 find_package(Threads REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED highgui core)
 find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
 find_package(OpenMP)
 

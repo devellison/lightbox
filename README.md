@@ -24,7 +24,7 @@ and can be built as part of the lightbox project or separately - look in
 - Install dependencies:
   - As it's actively being developed, might check the [workflows](https://github.com/devellison/lightbox/tree/main/.github/workflows) for latest requirements for building.
   - Windows:
-    - Visual Studio 2019 (CMake 3.21)  (Others may work - 2022 in CI)
+    - Visual Studio 2019 (CMake 3.20)  (Others may work - 2022 in CI)
     - Set up OpenCV 4.5.5, including videoio, highgui, and core 
       (current binary release didn't seem to have these, but choco did)
     - Doxygen, graphviz, cmake-format (pip install), clang-format
@@ -34,7 +34,7 @@ and can be built as part of the lightbox project or separately - look in
     - libfmt (on Linux) should be built and installed
     - Google test is downloaded by the cmake currently
   - Build tools and deps for both:    
-    - CMake v3.21+ (you can get it from kitware for ubuntu)
+    - CMake v3.20+ (you can get it from kitware for ubuntu)
     - OpenMP (optional, not using it much yet)
     - Doxygen, graphviz, cpack, cmake-format (pip install), clang-format
 - Set up hardware (Web Camera, Feather RP2040, many many LEDs, relay boards, TBD)
