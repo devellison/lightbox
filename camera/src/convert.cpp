@@ -2,6 +2,7 @@
 /// Video conversion routines.. right now just plain C/C++
 #include "convert.hpp"
 #include <cmath>
+#include <memory>
 #include "log.hpp"
 
 namespace zebral
@@ -16,15 +17,6 @@ namespace zebral
 // A great optimized implementation of all of this and more is
 // Chromium's libyuv
 // https://chromium.googlesource.com/libyuv/libyuv/
-//
-// Might also look at the table patents.....
-// Not sure if memory or calcs will be better.
-// "Fast filtered YUV to RGB conversion"
-//
-// https://patents.google.com/patent/US7639263B2/en
-// "RAM based YUV - RGB conversion "
-// https://patents.google.com/patent/US5872556A/en
-//
 
 // Reference implementation. Slow but accurate.
 void YUVToRGB(uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& b)
@@ -158,6 +150,39 @@ CameraFrame BGRAToBGRFrame(const uint8_t* src, int width, int height, int stride
 {
   CameraFrame out(width, height, 3, 1, false, false);
   BGRAToBGRFrame(src, out, stride);
+  return out;
+}
+
+void GreyRow(const uint8_t* src, uint8_t* dst, int stride)
+{
+  std::memcpy(dst, src, stride);
+}
+
+void GreyToFrame(const uint8_t* src, CameraFrame& out, int stride)
+{
+  auto src_ptr   = src;
+  auto dst_ptr   = out.data();
+  int dst_stride = out.channels() * out.bytes_per_channel() * out.width();
+
+  for (int y = 0; y < out.height(); ++y)
+  {
+    GreyRow(src_ptr, dst_ptr, dst_stride);
+    src_ptr += stride;
+    dst_ptr += dst_stride;
+  }
+}
+
+CameraFrame Grey16ToFrame(const uint8_t* src, int width, int height, int stride)
+{
+  CameraFrame out(width, height, 2, 1, false, false);
+  GreyToFrame(src, out, stride);
+  return out;
+}
+
+CameraFrame Grey8ToFrame(const uint8_t* src, int width, int height, int stride)
+{
+  CameraFrame out(width, height, 1, 1, false, false);
+  GreyToFrame(src, out, stride);
   return out;
 }
 

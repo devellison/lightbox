@@ -33,7 +33,7 @@ enable_testing()
 find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED highgui core)
 find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
-find_package(OpenMP)
+# find_package(OpenMP)
 
 # High warning level, treat warnings as errors, compile as a console with
 # main().
@@ -47,6 +47,7 @@ else()
 endif()
 
 add_subdirectory(camera)
+add_subdirectory(serial)
 add_subdirectory(app)
 add_subdirectory(test)
 

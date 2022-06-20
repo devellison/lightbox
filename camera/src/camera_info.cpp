@@ -96,7 +96,11 @@ int ChannelsFromFourCC(const std::string& fmt_format)
 {
   switch (FourCCToUInt32(fmt_format))
   {
+#if _WIN32
     case FOURCCTOUINT32("YUY2"):
+#else
+    case FOURCCTOUINT32("YUYV"):
+#endif
       return 3;
     case FOURCCTOUINT32("NV12"):
       return 3;
@@ -108,10 +112,13 @@ int ChannelsFromFourCC(const std::string& fmt_format)
     case FOURCCTOUINT32("RGBT"):
     case FOURCCTOUINT32("BGRT"):
       return 4;
+    case FOURCCTOUINT32("Z16 "):
+    case FOURCCTOUINT32("GREY"):
+      return 1;
     case 0:
       return 0;
     default:
-      ZBA_LOG("Unsupported format");
+      // ZBA_LOG("Unsupported format");
       return 0;
   }
 }
@@ -120,7 +127,11 @@ int BytesPPPCFromFourCC(const std::string& fmt_format)
 {
   switch (FourCCToUInt32(fmt_format))
   {
+#if _WIN32
     case FOURCCTOUINT32("YUY2"):
+#else
+    case FOURCCTOUINT32("YUYV"):
+#endif
       return 1;
     case FOURCCTOUINT32("NV12"):
       return 1;
@@ -132,10 +143,14 @@ int BytesPPPCFromFourCC(const std::string& fmt_format)
     case FOURCCTOUINT32("RGBT"):
     case FOURCCTOUINT32("BGRT"):
       return 1;
+    case FOURCCTOUINT32("Z16 "):
+      return 2;
+    case FOURCCTOUINT32("GREY"):
+      return 1;
     case 0:
       return 0;
     default:
-      ZBA_LOG("Unsupported format");
+      // ZBA_LOG("Unsupported format");
       return 0;
   }
 }

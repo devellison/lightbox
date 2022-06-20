@@ -1,18 +1,23 @@
 #if __linux__
 #include "camera_v4l2.hpp"
 
-#include <functional>
-#include <regex>
-#include <string>
-
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fstream>
+#include <functional>
+#include <memory>
+#include <regex>
+#include <string>
+#include <thread>
 
 #include <linux/videodev2.h>
+#include <sys/mman.h>
 
-#include "auto_close.hpp"
+#include "buffer_memmap.hpp"
+#include "convert.hpp"
+#include "device_v4l2.hpp"
 #include "errors.hpp"
 #include "find_files.hpp"
 #include "log.hpp"
@@ -20,98 +25,57 @@
 
 namespace zebral
 {
-/// Retry interrupted ioctls
-int ioctl_retry(int fd, long unsigned int request, void* param)
-{
-  int r = -1;
-  do
-  {
-    r = ioctl(fd, request, param);
-  } while ((-1 == r) && (EINTR == errno));
-  return r;
-}
-
-/// Fun implementation details.
+/// CameraV4L2's implementation details
 class CameraV4L2::Impl
 {
  public:
-  Impl(CameraV4L2* parent) : parent_(*parent), started_(false) {}
+  // Constructor = opens the device
+  Impl(CameraV4L2* parent);
+  ~Impl() = default;
 
-  CameraV4L2& parent_;
-  AutoClose handle_;
-  bool started_;  ///< True if started.
+  /// Callback for EnumerateModes
+  /// Returning false stops the enumeration.
+  typedef std::function<bool(const v4l2_fmtdesc&, const v4l2_frmsizeenum&,
+                             const FormatInfo& fmt_info)>
+      ModeCallback;
+
+  /// Enumerated all modes available on current device,
+  /// calling the callback for each one.
+  void EnumerateModes(ModeCallback cb);
+
+  /// Thread that reads data from the camera and calls callbacks
+  void CaptureThread();
+
+  /// Starts the camera
+  void Start();
+
+  /// Stops the camera
+  void Stop();
+
+  static constexpr int kNumBuffers = 1;    ///< Number of buffers to allocate
+  std::unique_ptr<BufferGroup> buffers_;  ///< Buffer group for buffers
+  CameraV4L2& parent_;                    ///< Parent camera object
+  DeviceV4L2Ptr device_;                  ///< Camera device file descriptor
+  bool started_;                          ///< True if started.
+  std::thread camera_thread_;
 };
 
 CameraV4L2::CameraV4L2(const CameraInfo& info) : Camera(info)
 {
   impl_ = std::make_unique<Impl>(this);
-  impl_->handle_.reset(open(info_.path.c_str(), O_RDWR));
-
-  if (impl_->handle_.bad())
-  {
-    ZBA_THROW("Error opening device(): " + info_.path, Result::ZBA_CAMERA_OPEN_FAILED);
-  }
-
-  v4l2_capability caps;
-  memset(&caps, 0, sizeof(caps));
-  if (-1 == ioctl_retry(impl_->handle_, VIDIOC_QUERYCAP, &caps))
-  {
-    ZBA_THROW("Error querying device: " + info_.name, Result::ZBA_CAMERA_OPEN_FAILED);
-  }
-
-  if (!(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE))
-  {
-    ZBA_THROW("Capture interface not supported: " + info_.name, Result::ZBA_CAMERA_OPEN_FAILED);
-  }
-
-  struct v4l2_fmtdesc formatDesc;
-  v4l2_frmsizeenum frameSize;
-
-  for (int format_idx = 0;; format_idx++)
-  {
-    memset(&formatDesc, 0, sizeof(formatDesc));
-    formatDesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    formatDesc.index = format_idx;
-
-    if (-1 == ioctl_retry(impl_->handle_, VIDIOC_ENUM_FMT, &formatDesc))
-    {
-      ZBA_ERRNO("Error enumerating video formats.");
-      // Done.
-      break;
-    }
-    for (int fsize_idx = 0;; fsize_idx++)
-    {
-      memset(&frameSize, 0, sizeof(frameSize));
-      frameSize.index        = fsize_idx;
-      frameSize.pixel_format = formatDesc.pixelformat;
-      if (-1 == ioctl_retry(impl_->handle_, VIDIOC_ENUM_FRAMESIZES, &frameSize))
-      {
-        break;
-      }
-      std::string format_str(reinterpret_cast<char*>(&frameSize.pixel_format), 4);
-      float fps = 0.0f;
-      /// {TODO} investigate stepwise sizes. For now, ignore them.
-      if (V4L2_FRMSIZE_TYPE_DISCRETE == frameSize.type)
-      {
-        int width  = frameSize.discrete.width;
-        int height = frameSize.discrete.height;
-        FormatInfo fmt_info(width, height, fps, format_str);
-        if (IsFormatSupported(format_str))
-        {
-          info_.AddFormat(fmt_info);
-        }
-        AddAllModeEntry(fmt_info);
-      }
-    }
-  }
 }
 
 CameraV4L2::~CameraV4L2() {}
 
-void CameraV4L2::OnStart() {}
+void CameraV4L2::OnStart()
+{
+  impl_->Start();
+}
 
-void CameraV4L2::OnStop() {}
-
+void CameraV4L2::OnStop()
+{
+  impl_->Stop();
+}
 std::vector<CameraInfo> CameraV4L2::Enumerate()
 {
   std::vector<CameraInfo> cameras;
@@ -121,20 +85,23 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
   {
     int idx = std::stoi(curMatch.matches[1]);
 
-    std::string path = curMatch.dir_entry.path().string();
+    std::string path      = curMatch.dir_entry.path().string();
+    std::string path_file = curMatch.dir_entry.path().filename().string();
 
     ZBA_LOG("Checking {}", path.c_str());
 
     v4l2_capability caps;
     memset(&caps, 0, sizeof(caps));
     {
-      AutoClose handle(open(path.c_str(), O_RDONLY));
-      if (handle.bad()) continue;
+      DeviceV4L2 device(path);
+      if (device.bad()) continue;
 
       // check if it's v4l2...
-      int result = ioctl_retry(handle, VIDIOC_QUERYCAP, &caps);
+      int result = device.ioctl(VIDIOC_QUERYCAP, &caps);
       if (-1 == result) continue;
     }
+
+    // Get device capabilities
     if (!(V4L2_CAP_VIDEO_CAPTURE & caps.capabilities)) continue;
 
     std::string name(reinterpret_cast<char*>(&caps.card[0]));
@@ -147,17 +114,307 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
     {
       /// {TODO} It's a USB device. Track down the VID/PID
       // / sys / bus / usb / drivers / uvcvideo
+      auto usbDevAddrs = FindFiles("/sys/bus/usb/drivers/uvcvideo/", "^([0-9-.]*):([0-9-.]*)$");
+      for (auto& curDevAddr : usbDevAddrs)
+      {
+        if (!std::filesystem::exists(curDevAddr.dir_entry.path() / "video4linux"))
+        {
+          continue;
+        }
+
+        auto usbVideoNames =
+            FindFiles(curDevAddr.dir_entry.path() / "video4linux", "^video([0-9]*)$");
+        for (auto curVideo : usbVideoNames)
+        {
+          if (path_file == curVideo.dir_entry.path().filename().string())
+          {
+            // Grab idProduct and idVendor files
+            std::ifstream prodFile(
+                zba_format("/sys/bus/usb/drivers/usb/{}/idProduct", curDevAddr.matches[1]));
+            std::ifstream vendFile(
+                zba_format("/sys/bus/usb/drivers/usb/{}/idVendor", curDevAddr.matches[1]));
+            if (prodFile.is_open() && vendFile.is_open())
+            {
+              std::string prodStr, vendStr;
+              std::getline(prodFile, prodStr);
+              std::getline(vendFile, vendStr);
+              vid = std::stol(vendStr, 0, 16);
+              pid = std::stol(prodStr, 0, 16);
+            }
+            break;
+          }
+        }
+        if (vid) break;
+      }
     }
+
+    // For now we want to skip the metadata devices.
+    struct v4l2_fmtdesc formatDesc;
+    DeviceV4L2 device(path);
+    memset(&formatDesc, 0, sizeof(formatDesc));
+    formatDesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    formatDesc.index = 0;
+    if (-1 == device.ioctl(VIDIOC_ENUM_FMT, &formatDesc))
+    {
+      /// {TODO} Track this device for later use for metadata
+      continue;
+    }
+
+    // Add the camera
     cameras.emplace_back(idx, 0, name, bus, path, driver, vid, pid);
   }
-
   return cameras;
 }
 
-FormatInfo CameraV4L2::OnSetFormat(const FormatInfo&)  // info)
+FormatInfo CameraV4L2::OnSetFormat(const FormatInfo& info)  // info)
 {
-  FormatInfo fmt_info;
+  v4l2_fmtdesc vfmtdesc;
+  v4l2_frmsizeenum vsize;
+  FormatInfo fmt_info = info;
+
+  auto findFormat = [&](const v4l2_fmtdesc& fmtdesc, const v4l2_frmsizeenum& frmsize,
+                        const FormatInfo& checkFmt) {
+    if (info.Matches(checkFmt))
+    {
+      fmt_info = checkFmt;
+      vfmtdesc = fmtdesc;
+      vsize    = frmsize;
+      return false;
+    }
+    return true;
+  };
+
+  // Enumerate modes with the lambda above to find the matching format
+  impl_->EnumerateModes(findFormat);
+
+  // ok, now got the match requested...
+  v4l2_format vfmt;
+  memset(&vfmt, 0, sizeof(vfmt));
+  vfmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+  // Get the current format
+  int result = impl_->device_->ioctl(VIDIOC_G_FMT, &vfmt);
+  if (-1 == result)
+  {
+    ZBA_THROW("Unable to get format", Result::ZBA_UNSUPPORTED_FMT);
+  }
+
+  // Set to user selected format params
+  v4l2_pix_format& pfmt = reinterpret_cast<v4l2_pix_format&>(vfmt.fmt);
+
+  vfmt.type        = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  pfmt.pixelformat = vfmtdesc.pixelformat;
+  pfmt.width       = vsize.discrete.width;
+  pfmt.height      = vsize.discrete.height;
+
+  // Set the format
+  result = impl_->device_->ioctl(VIDIOC_S_FMT, &vfmt);
+  if (-1 == result)
+  {
+    ZBA_THROW("Unable to set format", Result::ZBA_UNSUPPORTED_FMT);
+  }
+
   return fmt_info;
+}
+
+void CameraV4L2::Impl::Start()
+{
+  buffers_ = std::make_unique<BufferGroup>(device_, kNumBuffers);
+
+  // Start streaming
+  unsigned int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+  if (-1 == device_->ioctl(VIDIOC_STREAMON, &type))
+  {
+    ZBA_THROW("Error starting streaming!", Result::ZBA_CAMERA_ERROR);
+  }
+  camera_thread_ = std::thread(&CameraV4L2::Impl::CaptureThread, this);
+  started_       = true;
+}
+
+void CameraV4L2::Impl::Stop()
+{
+  // Stop streaming
+  if (camera_thread_.joinable())
+  {
+    camera_thread_.join();
+  }
+
+  if (started_)
+  {
+    int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (-1 == device_->ioctl(VIDIOC_STREAMOFF, &type))
+    {
+      ZBA_THROW("Error stopping streaming!", Result::ZBA_CAMERA_ERROR);
+    }
+    // Unmap
+    buffers_.reset();
+    started_ = false;
+  }
+}
+
+void CameraV4L2::Impl::CaptureThread()
+{
+  // Queue up buffers
+  buffers_->QueueAll();
+
+  size_t bufIdx = 0;
+  while (!parent_.exiting_)
+  {
+    int result = device_->select(5.0f);
+
+    if (-1 == result)
+    {
+      if ((EINTR == errno) || (EAGAIN == errno)) continue;
+    }
+    else if (0 == result)
+    {
+      ZBA_LOG("Frame timed out on {}", parent_.info_.name);
+      continue;
+    }
+
+    // Get a buffer
+    if (!buffers_->Get(bufIdx).Dequeue()) continue;
+    auto format_if_set = parent_.GetFormat();
+    if (format_if_set)
+    {
+      auto format = *format_if_set;
+      /*
+      if (parent_.decode_)
+      {
+        // If we've got V4L2 converting to BGRA for us {TODO}
+        BGRAToBGRAFrame(buffers_[buffer.index].data, parent_.cur_frame_, src_stride);
+      }
+      else
+      */
+      {
+        if (format.format == "YUYV")
+        {
+          int src_stride = (parent_.cur_frame_.width() * 2);
+          YUY2ToBGRFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+        }
+        else if (format.format == "NV12")
+        {
+          int src_stride = (parent_.cur_frame_.width());
+          NV12ToBGRFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+        }
+      }
+    }
+    parent_.OnFrameReceived(parent_.cur_frame_);
+
+    // Requeue buffer
+    buffers_->Get(bufIdx).Queue();
+
+    // Go to next buffer
+    bufIdx = (bufIdx + 1) % kNumBuffers;
+  }
+  ZBA_LOG("CaptureThread exiting...");
+}
+
+CameraV4L2::Impl::Impl(CameraV4L2* parent)
+    : parent_(*parent),
+      device_(std::make_shared<DeviceV4L2>(parent_.info_.path)),
+      started_(false)
+{
+  if (device_->bad())
+  {
+    ZBA_THROW("Error opening device(): " + parent_.info_.path, Result::ZBA_CAMERA_OPEN_FAILED);
+  }
+
+  v4l2_capability caps;
+  memset(&caps, 0, sizeof(caps));
+  if (-1 == device_->ioctl(VIDIOC_QUERYCAP, &caps))
+  {
+    ZBA_THROW("Error querying device: " + parent_.info_.name, Result::ZBA_CAMERA_OPEN_FAILED);
+  }
+
+  if (!(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE))
+  {
+    ZBA_THROW("Capture interface not supported: " + parent_.info_.name,
+              Result::ZBA_CAMERA_OPEN_FAILED);
+  }
+
+  auto saveFormat = [this](const v4l2_fmtdesc&, const v4l2_frmsizeenum&,
+                           const FormatInfo& fmt_info) {
+    if (parent_.IsFormatSupported(fmt_info.format))
+    {
+      parent_.info_.AddFormat(fmt_info);
+    }
+    parent_.AddAllModeEntry(fmt_info);
+    return true;
+  };
+  EnumerateModes(saveFormat);
+}
+
+void CameraV4L2::Impl::EnumerateModes(ModeCallback cb)
+{
+  struct v4l2_fmtdesc formatDesc;
+  v4l2_frmsizeenum frameSize;
+
+  // For each format type (e.g. YUYV, MJPG)
+  for (int format_idx = 0;; format_idx++)
+  {
+    memset(&formatDesc, 0, sizeof(formatDesc));
+    formatDesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    formatDesc.index = format_idx;
+
+    if (-1 == device_->ioctl(VIDIOC_ENUM_FMT, &formatDesc))
+    {
+      break;
+    }
+
+    // For each frame size
+    for (int fsize_idx = 0;; fsize_idx++)
+    {
+      memset(&frameSize, 0, sizeof(frameSize));
+      frameSize.index        = fsize_idx;
+      frameSize.pixel_format = formatDesc.pixelformat;
+      if (-1 == device_->ioctl(VIDIOC_ENUM_FRAMESIZES, &frameSize))
+      {
+        break;
+      }
+      std::string format_str(reinterpret_cast<char*>(&frameSize.pixel_format), 4);
+      float fps = 0.0f;
+      /// {TODO} investigate stepwise sizes. For now, ignore them.
+      if (V4L2_FRMSIZE_TYPE_DISCRETE != frameSize.type)
+      {
+        continue;
+      }
+      int width  = frameSize.discrete.width;
+      int height = frameSize.discrete.height;
+
+      v4l2_frmivalenum frmival;
+      /// For each FPS
+      for (int fival_idx = 0;; fival_idx++)
+      {
+        memset(&frmival, 0, sizeof(frmival));
+        frmival.pixel_format = frameSize.pixel_format;
+        frmival.width        = width;
+        frmival.height       = height;
+        frmival.index        = fival_idx;
+        if (-1 == device_->ioctl(VIDIOC_ENUM_FRAMEINTERVALS, &frmival))
+        {
+          break;
+        }
+
+        if ((frmival.type == V4L2_FRMIVAL_TYPE_DISCRETE) && (frmival.discrete.denominator > 0))
+        {
+          // Round to 2 significant digits, e.g. 29.97
+          fps = std::round(100.0f / (static_cast<float>(frmival.discrete.numerator) /
+                                     static_cast<float>(frmival.discrete.denominator))) /
+                100.0f;
+        }
+
+        FormatInfo fmt_info(width, height, fps, format_str);
+        if (cb)
+        {
+          // call callback
+          bool result = cb(formatDesc, frameSize, fmt_info);
+          if (!result) return;
+        }
+      }
+    }
+  }
 }
 
 }  // namespace zebral

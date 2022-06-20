@@ -29,7 +29,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_CXX_STANDARD 20)
 include(GNUInstallDirs)
 
-find_package(OpenMP)
+# find_package(OpenMP)
 
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)
@@ -53,13 +53,14 @@ enable_testing()
 # Add camera library
 
 set(SRC
-    src/auto_close.cpp
+    src/device_v4l2.cpp
     src/camera.cpp
     src/camera_winrt.cpp
     src/camera_v4l2.cpp
     src/camera_manager.cpp
     src/camera_info.cpp
     src/find_files.cpp
+    src/buffer_memmap.cpp
     src/platform.cpp
     src/errors.cpp
     src/log.cpp
@@ -68,7 +69,8 @@ set(SRC
 )
 
 set(INC
-    inc/auto_close.hpp
+    inc/device_v4l2.hpp
+    inc/buffer_memmap.hpp
     inc/camera_manager.hpp
     inc/camera_info.hpp
     inc/camera_winrt.hpp

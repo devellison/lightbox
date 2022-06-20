@@ -34,12 +34,13 @@ void enumerate()
 #if __linux__
     // The bus is valid on windows, but fugly.
     // linux the path is helpful.
-    std::cout << " " << curInfo.path;
+    std::cout << " (" << curInfo.path << ")";
 #endif
 
     if (curInfo.vid)
     {
-      std::cout << " [" << curInfo.vid << ":" << curInfo.pid << "]";
+      std::cout << " [" << std::hex << curInfo.vid << ":" << std::hex << curInfo.pid << std::dec
+                << "]";
     }
     std::cout << std::endl;
   }
@@ -125,9 +126,42 @@ void dump_4ccs()
   }
 }
 
+void test()
+{
+  // For this app, logging is kinda redundant
+  ZBA_SetLogLevel(ZBA_LL::LL_INFO);
+  CameraManager mgr;
+  auto infoList = mgr.Enumerate();
+  if (infoList.size() == 0) return;
+
+  auto camera = mgr.Create(infoList[0]);
+  auto info   = camera->GetCameraInfo();
+  if (info.formats.size() == 0)
+  {
+    return;
+  }
+
+  camera->SetFormat(*info.formats.begin());
+
+  camera->Start();
+  auto frame = camera->GetNewFrame(10000);
+  camera->Stop();
+
+  if (frame)
+  {
+    std::cout << "Frame:" << *frame << std::endl;
+  }
+  else
+  {
+    std::cout << "Did not get a frame." << std::endl;
+  }
+}
+
 int main(int argc, char** argv)
 {
+  // For this app, logging is kinda redundant
   ZBA_SetLogLevel(ZBA_LL::LL_NONE);
+  Platform p;
 
   if (argc == 1)
   {
@@ -154,6 +188,10 @@ int main(int argc, char** argv)
     else if (std::strcmp(argv[i], "4ccs") == 0)
     {
       dump_4ccs();
+    }
+    else if (std::strcmp(argv[i], "test") == 0)
+    {
+      test();
     }
   }
   return 0;

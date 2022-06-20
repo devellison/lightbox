@@ -16,8 +16,8 @@ void zba_log_internal(ZBA_LL level, const std::string& logstr, const zba_source_
   uint64_t thread_id = std::hash<std::thread::id>{}(std::this_thread::get_id());
 
   // compose the rest of the log string
-  std::string stampstr = zba_format("[{}] [{}] {}({}) : ", zba_local_time(zba_now()), thread_id,
-                                    loc.file_name(), loc.line());
+  std::string stampstr = zba_format("[{}] [{:x}] {}({}) : ", zba_local_time(zba_now(), 4),
+                                    thread_id, loc.file_name(), loc.line());
 
   if (gLogLevel < level)
   {

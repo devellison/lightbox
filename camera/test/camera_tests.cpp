@@ -11,9 +11,8 @@
 #include <cmath>
 #include <filesystem>
 
-#include "auto_close.hpp"
 #include "camera_manager.hpp"
-#include "camera_opencv.hpp"
+#include "camera_v4l2.hpp"
 #include "camera_winrt.hpp"
 #include "errors.hpp"
 #include "find_files.hpp"
@@ -21,12 +20,6 @@
 #include "log.hpp"
 #include "param.hpp"
 #include "platform.hpp"
-
-#if _WIN32
-const int kDefaultMode = _S_IREAD | _S_IWRITE;
-#else
-const int kDefaultMode = S_IRUSR | S_IWUSR;
-#endif
 
 using namespace zebral;
 
@@ -91,7 +84,7 @@ TEST(CameraTests, CameraSanity)
     ASSERT_FALSE(curCam.bus.empty());
 
     // Create each camera and dump its modes.
-    ZBA_TIMER(camera_timer,std::string("Camera {}"), curCam.name);
+    ZBA_TIMER(camera_timer, std::string("Camera {}"), curCam.name);
     auto camera = cmgr.Create(curCam);
     auto info   = camera->GetCameraInfo();
 
@@ -241,29 +234,6 @@ TEST(CameraTests, Params)
   ASSERT_TRUE(volume.get() == 100);
   ASSERT_TRUE(watch.guiChanges == 5);
   ASSERT_TRUE(watch.deviceChanges == 2);
-}
-
-TEST(CameraTest, AutoClose)
-{
-  std::filesystem::path tempDir(::testing::TempDir());
-  std::filesystem::path tempFile = tempDir / "AutoCloseTest";
-
-  // Clean up if we've bombed a previous test
-  if (std::filesystem::exists(tempFile))
-  {
-    ASSERT_TRUE(1 == std::filesystem::remove(tempFile));
-  }
-
-  {
-    AutoClose outTest(::open(tempFile.string().c_str(), O_CREAT | O_RDWR | O_TRUNC, kDefaultMode));
-    ASSERT_TRUE(outTest.valid());
-    ASSERT_TRUE(4 == ::write(outTest.get(), "Test", 4));
-  }
-
-  ASSERT_TRUE(std::filesystem::exists(tempFile));
-  std::cout << tempFile.string() << std::endl;
-  ASSERT_TRUE(1 == std::filesystem::remove(tempFile));
-  ASSERT_FALSE(std::filesystem::exists(tempFile));
 }
 
 TEST(CameraTests, FindFiles)

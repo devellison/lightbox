@@ -6,7 +6,9 @@
 using namespace zebral;
 TEST(SerialTest, Enumeration)
 {
+#if _WIN32
   [[maybe_unused]] auto devices = SerialLineChannel::Enumerate();
+#endif
 }
 int main(int argc, char** argv)
 {

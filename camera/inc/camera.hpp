@@ -138,5 +138,8 @@ class Camera
   std::vector<FormatInfo> all_modes_;         ///< All modes available, even those we don't support
 };
 
+/// Convenience operator for dumping CameraInfos for debugging
+std::ostream& operator<<(std::ostream& os, const CameraFrame& camFrame);
+
 }  // namespace zebral
 #endif  // #define LIGHTBOX_CAMERA_CAMERA_HPP_

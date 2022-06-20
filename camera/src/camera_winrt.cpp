@@ -77,70 +77,7 @@ class CameraWinRt::Impl
 // is kept in implementation class below
 CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
 {
-  impl_            = std::make_unique<Impl>(this);
-  auto devices     = Windows::Media::Capture::Frames::MediaFrameSourceGroup::FindAllAsync().get();
-  bool initialized = false;
-
-  for (auto curDevice : devices)
-  {
-    std::string deviceId = winrt::to_string(curDevice.Id());
-    if (deviceId == info_.bus)
-    {
-      impl_->settings_.SourceGroup(curDevice);
-      impl_->settings_.SharingMode(MediaCaptureSharingMode::ExclusiveControl);
-      impl_->settings_.MemoryPreference(MediaCaptureMemoryPreference::Cpu);
-      impl_->settings_.StreamingCaptureMode(StreamingCaptureMode::Video);
-
-      /// MediaCapture can throw - catch and rethrow as our own error type.
-      try
-      {
-        impl_->mc_.InitializeAsync(impl_->settings_).get();
-        initialized = true;
-        break;
-      }
-      catch (winrt::hresult_error const& ex)
-      {
-        ZBA_ERR(winrt::to_string(ex.message()));
-        ZBA_THROW("Unable to initialize capture for device: " + info_.name,
-                  Result::ZBA_CAMERA_OPEN_FAILED);
-      }
-    }
-  }
-
-  if (!initialized)
-  {
-    ZBA_THROW("Didn't find requested capture device: " + info_.name,
-              Result::ZBA_CAMERA_OPEN_FAILED);
-  }
-
-  /// Now enumerate modes...
-  auto frameSources = impl_->mc_.FrameSources();
-
-  // {TODO} Okay, this is weird. The frameSources map has the sources, with Source#0@ prepending
-  // to their IDs. Also the case on the ending /global is different. Go figure.
-  //
-  // I'm not sure why - this is something to investigate. But it causes a TryLookup() to fail.
-  //
-  // On the other hand.... we initialized the mediacapture object with just our device,
-  // will it have other devices? It appears not, so just go through all the sources.
-  // Some may be IR/DEPTH/etc. Need to test those.
-  for (const auto& curSource : frameSources)
-  {
-    impl_->device_ = curSource.Value();
-    auto formats   = impl_->device_.SupportedFormats();
-    for (const auto& curFormat : formats)
-    {
-      // Skip non-Video formats.
-      auto major = curFormat.MajorType();
-      if (major != L"Video") continue;
-      auto format = MediaFrameFormatToFormat(curFormat);
-      if (IsFormatSupported(winrt::to_string(curFormat.Subtype())))
-      {
-        info_.AddFormat(format);
-      }
-      AddAllModeEntry(format);
-    }
-  }
+  impl_ = std::make_unique<Impl>(this);
 }
 
 CameraWinRt::~CameraWinRt() {}
@@ -274,8 +211,9 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
   auto h         = curFormat.VideoFormat().Height();
   auto subType   = curFormat.Subtype();
   auto frameRate = curFormat.FrameRate();
-  float fps =
-      static_cast<float>(frameRate.Numerator()) / static_cast<float>(frameRate.Denominator());
+  float fps      = std::round(100.0f * static_cast<float>(frameRate.Numerator()) /
+                         static_cast<float>(frameRate.Denominator())) /
+              100.0f;
   return FormatInfo(w, h, fps, winrt::to_string(subType));
 }
 
@@ -285,6 +223,69 @@ CameraWinRt::Impl::Impl(CameraWinRt* parent)
       started_(false),
       device_(nullptr)
 {
+  auto devices     = Windows::Media::Capture::Frames::MediaFrameSourceGroup::FindAllAsync().get();
+  bool initialized = false;
+
+  for (auto curDevice : devices)
+  {
+    std::string deviceId = winrt::to_string(curDevice.Id());
+    if (deviceId == parent_.info_.bus)
+    {
+      settings_.SourceGroup(curDevice);
+      settings_.SharingMode(MediaCaptureSharingMode::ExclusiveControl);
+      settings_.MemoryPreference(MediaCaptureMemoryPreference::Cpu);
+      settings_.StreamingCaptureMode(StreamingCaptureMode::Video);
+
+      /// MediaCapture can throw - catch and rethrow as our own error type.
+      try
+      {
+        mc_.InitializeAsync(settings_).get();
+        initialized = true;
+        break;
+      }
+      catch (winrt::hresult_error const& ex)
+      {
+        ZBA_ERR(winrt::to_string(ex.message()));
+        ZBA_THROW("Unable to initialize capture for device: " + parent_.info_.name,
+                  Result::ZBA_CAMERA_OPEN_FAILED);
+      }
+    }
+  }
+
+  if (!initialized)
+  {
+    ZBA_THROW("Didn't find requested capture device: " + parent_.info_.name,
+              Result::ZBA_CAMERA_OPEN_FAILED);
+  }
+
+  /// Now enumerate modes...
+  auto frameSources = mc_.FrameSources();
+
+  // {TODO} Okay, this is weird. The frameSources map has the sources, with Source#0@ prepending
+  // to their IDs. Also the case on the ending /global is different. Go figure.
+  //
+  // I'm not sure why - this is something to investigate. But it causes a TryLookup() to fail.
+  //
+  // On the other hand.... we initialized the mediacapture object with just our device,
+  // will it have other devices? It appears not, so just go through all the sources.
+  // Some may be IR/DEPTH/etc. Need to test those.
+  for (const auto& curSource : frameSources)
+  {
+    device_      = curSource.Value();
+    auto formats = device_.SupportedFormats();
+    for (const auto& curFormat : formats)
+    {
+      // Skip non-Video formats.
+      auto major = curFormat.MajorType();
+      if (major != L"Video") continue;
+      auto format = MediaFrameFormatToFormat(curFormat);
+      if (parent_.IsFormatSupported(winrt::to_string(curFormat.Subtype())))
+      {
+        parent_.info_.AddFormat(format);
+      }
+      parent_.AddAllModeEntry(format);
+    }
+  }
 }
 
 void CameraWinRt::Impl::CheckNewControlsSupported()

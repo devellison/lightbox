@@ -75,6 +75,12 @@ CameraFrame YUY2ToBGRFrame(const uint8_t* src, int width, int height, int stride
 CameraFrame NV12ToBGRFrame(const uint8_t* src, int width, int height, int stride);
 /// Creates a frame and converts BGRA into it
 CameraFrame BGRAToBGRFrame(const uint8_t* src, int width, int height, int stride);
+
+void GreyRow(const uint8_t* src, uint8_t* dst, int stride);
+void GreyToFrame(const uint8_t* src, CameraFrame& out, int stride);
+CameraFrame Grey16ToFrame(const uint8_t* src, int width, int height, int stride);
+CameraFrame Grey8ToFrame(const uint8_t* src, int width, int height, int stride);
+
 }  // namespace zebral
 
 #endif  // LIGHTBOX_CAMERA_CONVERT_HPP_
