@@ -73,8 +73,7 @@ set(INC
     inc/buffer_memmap.hpp
     inc/camera_manager.hpp
     inc/camera_info.hpp
-    inc/camera_winrt.hpp
-    inc/camera_v4l2.hpp
+    inc/camera_platform.hpp
     inc/camera.hpp
     inc/find_files.hpp
     inc/param.hpp

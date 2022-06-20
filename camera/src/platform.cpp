@@ -1,3 +1,6 @@
+/// \file platform.cpp
+/// Platform object (for app/thread initialization for platforms) and
+/// utility functions for common tasks that differ between platforms.
 #include "platform.hpp"
 #include <codecvt>
 #include <iomanip>

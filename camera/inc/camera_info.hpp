@@ -11,7 +11,10 @@
 
 namespace zebral
 {
+/// Returns the number of channels from a fourCC code, if we support it.
 int ChannelsFromFourCC(const std::string& fmt_format);
+
+/// Returns the number of bytes per channel per pixel from a fourCC code, if we support it.
 int BytesPPPCFromFourCC(const std::string& fmt_format);
 
 /// FourCC for arbitrary incoming strings.
@@ -21,7 +24,6 @@ uint32_t FourCCToUInt32(const std::string& fmt_format);
 constexpr uint32_t FOURCCTOUINT32(char const format[5])
 {
   return (format[0]) | (format[1] << 8) | (format[2] << 16) | (format[3] << 24);
-  // return (format[0] << 24) | (format[1] << 16) | (format[2] << 8) | format[3];
 }
 
 /// Generic OSHandle for creation when needed. Using this so we don't have to pollute everything
@@ -70,17 +72,15 @@ struct CameraInfo
 
   /// CameraInfo ctor
   /// \param cam_idx Index of camera
-  /// \param cam_api API (OpenCV only / deprecated)
   /// \param cam_name Name of camera
   /// \param cam_path Path / System identifier for camera
   /// \param os_handle OS-specific value (deprecated)
   /// \param vid If a USB device, then the VendorID. Else 0
   /// \param pid If a USB device, then the ProductID. Else 0
-  CameraInfo(int cam_idx, int cam_api, const std::string& cam_name, const std::string& cam_bus,
+  CameraInfo(int cam_idx, const std::string& cam_name, const std::string& cam_bus,
              const std::string& cam_path, const std::string& cam_driver, uint16_t cam_vid = 0,
              uint16_t cam_pid = 0)
       : index(cam_idx),
-        api(cam_api),
         name(cam_name),
         bus(cam_bus),
         path(cam_path),
@@ -98,8 +98,7 @@ struct CameraInfo
     formats.emplace(format);
   }
 
-  int index;           ///< Index (All, but only really important in opencv)
-  int api;             ///< API (OpenCV - may deprecate)
+  int index;           ///< Index
   std::string name;    ///< Friendly Device name (WinRt/V4l2)
   std::string bus;     ///< Device path (WinRt)
   std::string path;    ///< File path (V4L2 only - e.g. /dev/video0)
@@ -113,6 +112,7 @@ struct CameraInfo
 
 /// Convenience operator for dumping CameraInfos for debugging
 std::ostream& operator<<(std::ostream& os, const CameraInfo& camInfo);
+
 /// Convenience operator for dumping FormatInfoss for debugging
 std::ostream& operator<<(std::ostream& os, const FormatInfo& fmtInfo);
 

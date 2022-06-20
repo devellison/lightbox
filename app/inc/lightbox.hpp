@@ -1,3 +1,5 @@
+/// \file lightbox.hpp
+/// Lightbox object - not implemented yet.
 #ifndef LIGHTBOX_LIGHTBOX_HPP_
 #define LIGHTBOX_LIGHTBOX_HPP_
 

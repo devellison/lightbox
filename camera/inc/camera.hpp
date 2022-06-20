@@ -1,5 +1,5 @@
 /// \file camera.hpp
-/// Camera interface.
+/// Camera interface base class
 #ifndef LIGHTBOX_CAMERA_CAMERA_HPP_
 #define LIGHTBOX_CAMERA_CAMERA_HPP_
 

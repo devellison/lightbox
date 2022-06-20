@@ -1,3 +1,5 @@
+/// \file lightbox.cpp
+/// Implementation of Lightbox app.  Not implemented yet.
 #include "lightbox.hpp"
 
 #ifndef LIGHTBOX_VERSION

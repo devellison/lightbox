@@ -1,3 +1,5 @@
+/// \file main.cpp
+/// Main file for lightbox_app. Right now, just a test app
 #include <cstdlib>
 #include <iostream>
 #include "camera.hpp"
@@ -52,9 +54,6 @@ int main(int argc, char* argv[])
         // Largest 30fps format.
         FormatInfo f;
         f.fps    = 30;
-        f.width = 160;
-        f.height = 90;
-        f.fps = 5;
         f.format = format;
         camera->SetFormat(f, false);
         // camera->SetFormat(f);

@@ -1,3 +1,5 @@
+/// \file find_files.cpp
+/// Utility for finding files that match a regex
 #include "find_files.hpp"
 #include <fstream>
 #include <iostream>

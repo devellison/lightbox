@@ -85,23 +85,28 @@ class Error : public std::runtime_error
     return where_;
   }
 
+  /// Return the system error if one was given
   int system_error() const
   {
     return errno_;
   }
 
  protected:
-  /// Numeric result in case we want to handle things nicely.
-  Result result_;
-  std::string where_;
-  int errno_;
+  Result result_;      ///< Numeric result in case we want to handle things nicely.
+  std::string where_;  ///< Where in the code the exception was thrown
+  int errno_;          ///< ErrorNo at time of throw, if provided.
 };
-
+/// Error utility function - convert errno to string
 std::string SysErrorToString(int errorCode);
+
+/// Error utility function - convert zebral::Result codes to strings
 std::string ZBAErrorToString(Result result);
 
 /// Macro to throw an error with location
-#define ZBA_THROW(msg, result)       throw Error(msg, result, __FILE__, __LINE__)
+#define ZBA_THROW(msg, result) throw Error(msg, result, __FILE__, __LINE__)
+
+/// Macro to throw an error with location and errorno
 #define ZBA_THROW_ERRNO(msg, result) throw Error(msg, result, __FILE__, __LINE__, errno)
+
 }  // namespace zebral
 #endif  // LIGHTBOX_ERRORS_HPP_

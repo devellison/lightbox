@@ -1,5 +1,7 @@
+/// \file camera_winrt.cpp
+/// CameraPlatform implementation for Windows in C++/WinRt
 #if _WIN32
-#include "camera_winrt.hpp"
+#include "camera_platform.hpp"
 
 #include <algorithm>
 #include <regex>
@@ -51,10 +53,10 @@ namespace zebral
 FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat);
 
 /// Fun implementation details.
-class CameraWinRt::Impl
+class CameraPlatform::Impl
 {
  public:
-  Impl(CameraWinRt* parent);
+  Impl(CameraPlatform* parent);
 
   void CheckNewControlsSupported();
 
@@ -62,7 +64,14 @@ class CameraWinRt::Impl
   void OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
                const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&);
 
-  CameraWinRt& parent_;                          ///< CameraWinRT that owns this Impl
+  /// Takes a device path string, returns vid/pid if found.
+  /// \param busPath - Windows ID string (bus path)
+  /// \param vid - receives USB vendorId on success
+  /// \param pid - receives USB pid on success
+  /// \return true if vid/pid found.
+  static bool VidPidFromBusPath(const std::string& busPath, uint16_t& vid, uint16_t& pid);
+
+  CameraPlatform& parent_;                       ///< CameraPlatform that owns this Impl
   MediaCapture mc_;                              ///< MediaCapture base object
   MediaCaptureInitializationSettings settings_;  ///< Settings for mc_
   IMapView<hstring, MediaFrameSource> sources_;  ///< FrameSources
@@ -75,14 +84,14 @@ class CameraWinRt::Impl
 // CameraWin main class
 // COM interfaces and most of the code
 // is kept in implementation class below
-CameraWinRt::CameraWinRt(const CameraInfo& info) : Camera(info)
+CameraPlatform::CameraPlatform(const CameraInfo& info) : Camera(info)
 {
   impl_ = std::make_unique<Impl>(this);
 }
 
-CameraWinRt::~CameraWinRt() {}
+CameraPlatform::~CameraPlatform() {}
 
-void CameraWinRt::OnStart()
+void CameraPlatform::OnStart()
 {
   if (impl_->reader_)
   {
@@ -92,7 +101,7 @@ void CameraWinRt::OnStart()
   }
 }
 
-void CameraWinRt::OnStop()
+void CameraPlatform::OnStop()
 {
   if (impl_->started_ && impl_->reader_)
   {
@@ -102,7 +111,8 @@ void CameraWinRt::OnStop()
   }
 }
 
-bool CameraWinRt::VidPidFromBusPath(const std::string& busPath, uint16_t& vid, uint16_t& pid)
+bool CameraPlatform::Impl::VidPidFromBusPath(const std::string& busPath, uint16_t& vid,
+                                             uint16_t& pid)
 {
   if (busPath.empty()) return false;
 
@@ -123,7 +133,7 @@ bool CameraWinRt::VidPidFromBusPath(const std::string& busPath, uint16_t& vid, u
   return false;
 }
 
-std::vector<CameraInfo> CameraWinRt::Enumerate()
+std::vector<CameraInfo> CameraPlatform::Enumerate()
 {
   std::vector<CameraInfo> cameras;
   auto devices = Windows::Media::Capture::Frames::MediaFrameSourceGroup::FindAllAsync().get();
@@ -158,15 +168,15 @@ std::vector<CameraInfo> CameraWinRt::Enumerate()
     // If it's not a USB device, VidPid returns false and vid/pid remain 0.
     uint16_t vid = 0;
     uint16_t pid = 0;
-    VidPidFromBusPath(bus_path, vid, pid);
+    Impl::VidPidFromBusPath(bus_path, vid, pid);
 
     int index = static_cast<int>(cameras.size());
-    cameras.emplace_back(index, 0, deviceName, bus_path, path, driver, vid, pid);
+    cameras.emplace_back(index, deviceName, bus_path, path, driver, vid, pid);
   }
   return cameras;
 }
 
-FormatInfo CameraWinRt::OnSetFormat(const FormatInfo& info)
+FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)
 {
   impl_->sources_ = impl_->mc_.FrameSources();
 
@@ -212,12 +222,12 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
   auto subType   = curFormat.Subtype();
   auto frameRate = curFormat.FrameRate();
   float fps      = std::round(100.0f * static_cast<float>(frameRate.Numerator()) /
-                         static_cast<float>(frameRate.Denominator())) /
+                              static_cast<float>(frameRate.Denominator())) /
               100.0f;
   return FormatInfo(w, h, fps, winrt::to_string(subType));
 }
 
-CameraWinRt::Impl::Impl(CameraWinRt* parent)
+CameraPlatform::Impl::Impl(CameraPlatform* parent)
     : parent_(*parent),
       reader_(nullptr),
       started_(false),
@@ -288,7 +298,7 @@ CameraWinRt::Impl::Impl(CameraWinRt* parent)
   }
 }
 
-void CameraWinRt::Impl::CheckNewControlsSupported()
+void CameraPlatform::Impl::CheckNewControlsSupported()
 {
   /// Test function...
   /// {TODO} Exposure controls and similar off VideoDeviceController() don't work.
@@ -297,8 +307,9 @@ void CameraWinRt::Impl::CheckNewControlsSupported()
   /// gets it done, so we'll go there.
   /// mc_.VideoDeviceController().GetDeviceProperty()
 }
-void CameraWinRt::Impl::OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
-                                const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&)
+void CameraPlatform::Impl::OnFrame(
+    const Windows::Media::Capture::Frames::MediaFrameReader& reader,
+    const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&)
 {
   if (auto frame = reader.TryAcquireLatestFrame())
   {

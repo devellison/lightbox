@@ -1,14 +1,17 @@
+/// \file camera_manager.cpp
+/// CameraManager for enumerating and creating cameras
+
 #include "camera_manager.hpp"
 #include <functional>
 #include <regex>
 #include "camera_info.hpp"
-#include "camera_v4l2.hpp"
-#include "camera_winrt.hpp"
+#include "camera_platform.hpp"
 #include "errors.hpp"
 #include "platform.hpp"
 
 namespace zebral
 {
+
 CameraManager::CameraManager() {}
 
 std::vector<CameraInfo> CameraManager::Enumerate()

@@ -1,3 +1,6 @@
+/// \file device_v4l2.cpp
+/// Implementation of device object to simplify usage and close handle automatically.
+
 #if __linux__
 #include "device_v4l2.hpp"
 

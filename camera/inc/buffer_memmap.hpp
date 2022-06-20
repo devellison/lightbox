@@ -1,3 +1,5 @@
+/// \file buffer_memmap.hpp
+/// Utility class for keeping track of V4L2 memory-mapped buffers
 #ifndef LIGHTBOX_CAMERA_BUFFER_MEMMAP_HPP_
 #define LIGHTBOX_CAMERA_BUFFER_MEMMAP_HPP_
 
@@ -26,19 +28,15 @@ class BufferMemmap
   /// Copy ctor - need to keep object vectors
   BufferMemmap(BufferMemmap&&);
 
-  /// Reset - unmaps any existing buffer
-  //  void Reset();
-
-  /// Reset - unmaps existing buffer and maps new one
-  //  void Reset(DeviceV4L2Ptr& device, int idx);
-
   /// Retrieves data ptr
+  /// \returns void* - pointer to mapped data buffer
   void* Data()
   {
     return data_;
   }
 
-  // Retrieves length
+  /// Retrieves length
+  /// \returns size_t - length of the data buffer in bytes
   size_t Length()
   {
     return length_;
@@ -47,7 +45,8 @@ class BufferMemmap
   /// Queues the buffer up for the devices
   void Queue();
 
-  // Returns true if a buffer is dequeued with data
+  /// Returns true if a buffer is dequeued with data
+  /// \returns true on success, false if we don't have a buffer.
   bool Dequeue();
 
  protected:

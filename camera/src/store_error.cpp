@@ -1,3 +1,5 @@
+/// \file store_error.cpp
+/// Implementation of errno storage
 #include "store_error.hpp"
 #include "errors.hpp"
 

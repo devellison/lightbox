@@ -1,8 +1,7 @@
-/// \file camera_v4l2.hpp
-/// Camera for linux using Video4Linux2
-#if __linux__
-#ifndef LIGHTBOX_CAMERA_CAMERA_V4L2_HPP_
-#define LIGHTBOX_CAMERA_CAMERA_V4L2_HPP_
+/// \file camera_platform.hpp
+/// Header for platform-specific cameras
+#ifndef LIGHTBOX_CAMERA_CAMERA_PLATFORM_HPP_
+#define LIGHTBOX_CAMERA_CAMERA_PLATFORM_HPP_
 
 #include "camera.hpp"
 #include "camera_info.hpp"
@@ -10,19 +9,16 @@
 namespace zebral
 {
 /// Linux Video4Linux2 camera implementation
-class CameraV4L2 : public Camera
+class CameraPlatform : public Camera
 {
  public:
-  CameraV4L2(const CameraInfo& info);
-  virtual ~CameraV4L2();
+  CameraPlatform(const CameraInfo& info);
+  virtual ~CameraPlatform();
 
-  // Enumerate V4L2 devices
+  // Enumerate devices
   static std::vector<CameraInfo> Enumerate();
 
  protected:
-  /// Loops until exiting_ is true grabbing frames
-  void CaptureThread();
-
   /// Creates the capture_ object before thread is started
   void OnStart() override;
 
@@ -32,13 +28,10 @@ class CameraV4L2 : public Camera
   /// Called to set camera mode. Should throw on failure.
   FormatInfo OnSetFormat(const FormatInfo& info) override;
 
-  /// The implementation sits in camera_win_impl
+  /// The implementation sits in the Impl object
   /// to avoid throwing all sorts of stuff into the header.
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
-/// Make CameraPlatform refer to CameraV4L2
-typedef CameraV4L2 CameraPlatform;
 }  // namespace zebral
-#endif  // LIGHTBOX_CAMERA_CAMERA_V4L2_HPP_
-#endif  // __linux__
+#endif  // LIGHTBOX_CAMERA_CAMERA_PLATFORM_HPP_

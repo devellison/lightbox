@@ -1,3 +1,5 @@
+/// \file log.hpp
+/// Logging and debugging related functions
 #include "log.hpp"
 #include <iomanip>
 #include <thread>

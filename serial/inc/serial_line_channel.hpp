@@ -1,10 +1,12 @@
+/// \file serial_line_channel.hpp
+/// Simple line-based serial communications.
 #ifndef LIGHTBOX_SERIAL_SERIAL_LINE_CHANNEL_HPP_
 #define LIGHTBOX_SERIAL_SERIAL_LINE_CHANNEL_HPP_
 
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
-#include <vector>
 namespace zebral
 {
 class SerialLineChannel
@@ -13,7 +15,7 @@ class SerialLineChannel
   SerialLineChannel(const std::string& path);
   ~SerialLineChannel();
 
-  static std::vector<std::string> Enumerate();
+  static std::map<std::string, std::string> Enumerate();
 
  protected:
   std::string path_;

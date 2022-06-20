@@ -1,3 +1,5 @@
+/// \file buffer_memmap.cpp
+/// Implementation of memory mapped buffers for v4l2
 #if __linux__
 
 #include "buffer_memmap.hpp"

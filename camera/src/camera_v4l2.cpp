@@ -1,5 +1,7 @@
+/// \file camera_v4l2.cpp
+/// CameraPlatform implementation for Linux / V4L2
 #if __linux__
-#include "camera_v4l2.hpp"
+#include "camera_platform.hpp"
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -25,12 +27,12 @@
 
 namespace zebral
 {
-/// CameraV4L2's implementation details
-class CameraV4L2::Impl
+/// CameraPlatform's implementation details
+class CameraPlatform::Impl
 {
  public:
   // Constructor = opens the device
-  Impl(CameraV4L2* parent);
+  Impl(CameraPlatform* parent);
   ~Impl() = default;
 
   /// Callback for EnumerateModes
@@ -52,39 +54,37 @@ class CameraV4L2::Impl
   /// Stops the camera
   void Stop();
 
-  static constexpr int kNumBuffers = 1;    ///< Number of buffers to allocate
+  static constexpr int kNumBuffers = 1;   ///< Number of buffers to allocate
   std::unique_ptr<BufferGroup> buffers_;  ///< Buffer group for buffers
-  CameraV4L2& parent_;                    ///< Parent camera object
+  CameraPlatform& parent_;                ///< Parent camera object
   DeviceV4L2Ptr device_;                  ///< Camera device file descriptor
   bool started_;                          ///< True if started.
   std::thread camera_thread_;
 };
 
-CameraV4L2::CameraV4L2(const CameraInfo& info) : Camera(info)
+CameraPlatform::CameraPlatform(const CameraInfo& info) : Camera(info)
 {
   impl_ = std::make_unique<Impl>(this);
 }
 
-CameraV4L2::~CameraV4L2() {}
+CameraPlatform::~CameraPlatform() {}
 
-void CameraV4L2::OnStart()
+void CameraPlatform::OnStart()
 {
   impl_->Start();
 }
 
-void CameraV4L2::OnStop()
+void CameraPlatform::OnStop()
 {
   impl_->Stop();
 }
-std::vector<CameraInfo> CameraV4L2::Enumerate()
+std::vector<CameraInfo> CameraPlatform::Enumerate()
 {
   std::vector<CameraInfo> cameras;
 
   auto video_devs = FindFiles("/dev/", "video([0-9]+)");
   for (auto curMatch : video_devs)
   {
-    int idx = std::stoi(curMatch.matches[1]);
-
     std::string path      = curMatch.dir_entry.path().string();
     std::string path_file = curMatch.dir_entry.path().filename().string();
 
@@ -161,19 +161,21 @@ std::vector<CameraInfo> CameraV4L2::Enumerate()
     }
 
     // Add the camera
-    cameras.emplace_back(idx, 0, name, bus, path, driver, vid, pid);
+    int index = static_cast<int>(cameras.size());
+    cameras.emplace_back(index, name, bus, path, driver, vid, pid);
   }
   return cameras;
 }
 
-FormatInfo CameraV4L2::OnSetFormat(const FormatInfo& info)  // info)
+FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)  // info)
 {
   v4l2_fmtdesc vfmtdesc;
   v4l2_frmsizeenum vsize;
   FormatInfo fmt_info = info;
 
-  auto findFormat = [&](const v4l2_fmtdesc& fmtdesc, const v4l2_frmsizeenum& frmsize,
-                        const FormatInfo& checkFmt) {
+  auto findFormat =
+      [&](const v4l2_fmtdesc& fmtdesc, const v4l2_frmsizeenum& frmsize, const FormatInfo& checkFmt)
+  {
     if (info.Matches(checkFmt))
     {
       fmt_info = checkFmt;
@@ -217,7 +219,7 @@ FormatInfo CameraV4L2::OnSetFormat(const FormatInfo& info)  // info)
   return fmt_info;
 }
 
-void CameraV4L2::Impl::Start()
+void CameraPlatform::Impl::Start()
 {
   buffers_ = std::make_unique<BufferGroup>(device_, kNumBuffers);
 
@@ -228,11 +230,11 @@ void CameraV4L2::Impl::Start()
   {
     ZBA_THROW("Error starting streaming!", Result::ZBA_CAMERA_ERROR);
   }
-  camera_thread_ = std::thread(&CameraV4L2::Impl::CaptureThread, this);
+  camera_thread_ = std::thread(&CameraPlatform::Impl::CaptureThread, this);
   started_       = true;
 }
 
-void CameraV4L2::Impl::Stop()
+void CameraPlatform::Impl::Stop()
 {
   // Stop streaming
   if (camera_thread_.joinable())
@@ -253,7 +255,7 @@ void CameraV4L2::Impl::Stop()
   }
 }
 
-void CameraV4L2::Impl::CaptureThread()
+void CameraPlatform::Impl::CaptureThread()
 {
   // Queue up buffers
   buffers_->QueueAll();
@@ -311,7 +313,7 @@ void CameraV4L2::Impl::CaptureThread()
   ZBA_LOG("CaptureThread exiting...");
 }
 
-CameraV4L2::Impl::Impl(CameraV4L2* parent)
+CameraPlatform::Impl::Impl(CameraPlatform* parent)
     : parent_(*parent),
       device_(std::make_shared<DeviceV4L2>(parent_.info_.path)),
       started_(false)
@@ -334,8 +336,8 @@ CameraV4L2::Impl::Impl(CameraV4L2* parent)
               Result::ZBA_CAMERA_OPEN_FAILED);
   }
 
-  auto saveFormat = [this](const v4l2_fmtdesc&, const v4l2_frmsizeenum&,
-                           const FormatInfo& fmt_info) {
+  auto saveFormat = [this](const v4l2_fmtdesc&, const v4l2_frmsizeenum&, const FormatInfo& fmt_info)
+  {
     if (parent_.IsFormatSupported(fmt_info.format))
     {
       parent_.info_.AddFormat(fmt_info);
@@ -346,7 +348,7 @@ CameraV4L2::Impl::Impl(CameraV4L2* parent)
   EnumerateModes(saveFormat);
 }
 
-void CameraV4L2::Impl::EnumerateModes(ModeCallback cb)
+void CameraPlatform::Impl::EnumerateModes(ModeCallback cb)
 {
   struct v4l2_fmtdesc formatDesc;
   v4l2_frmsizeenum frameSize;

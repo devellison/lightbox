@@ -7,7 +7,11 @@ using namespace zebral;
 TEST(SerialTest, Enumeration)
 {
 #if _WIN32
-  [[maybe_unused]] auto devices = SerialLineChannel::Enumerate();
+  auto devices = SerialLineChannel::Enumerate();
+  for (const auto& curDevice : devices)
+  {
+    std::cout << std::format("({}) : ({})", curDevice.first, curDevice.second) << std::endl;
+  }
 #endif
 }
 int main(int argc, char** argv)

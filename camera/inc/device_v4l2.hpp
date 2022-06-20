@@ -1,5 +1,5 @@
 /// \file device_v4l2.hpp
-/// File descriptor wrapper for a device
+/// File descriptor wrapper for a device for V4L2
 #ifndef LIGHTBOX_CAMERA_DEVICE_V4L2_HPP_
 #define LIGHTBOX_CAMERA_DEVICE_V4L2_HPP_
 

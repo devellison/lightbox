@@ -1,3 +1,5 @@
+/// \file convert.hpp
+/// Generic video conversion routines
 #ifndef LIGHTBOX_CAMERA_CONVERT_HPP_
 #define LIGHTBOX_CAMERA_CONVERT_HPP_
 
