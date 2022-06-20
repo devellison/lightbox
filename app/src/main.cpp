@@ -86,10 +86,12 @@ int main(int argc, char* argv[])
     if (frame)
     {
       cv::Mat img = Converter::Camera2Cv(*frame);
-      if ((img.type() == CV_16UC1) || (img.type() == CV_8UC1))
+      if (img.type() == CV_16UC1)
       {
-        cv::normalize(img, img, 0., 255., cv::NORM_MINMAX, CV_8U);
-        //        cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
+        // Just make it a bit more visible for now.
+        // This is generally a depth camera.
+        img.convertTo(img, CV_8UC1, 1.0 / 257.0);
+        cv::equalizeHist(img, img);
       }
       cv::imshow("Camera", img);
     }

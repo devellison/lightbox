@@ -176,6 +176,28 @@ std::vector<CameraInfo> CameraPlatform::Enumerate()
   return cameras;
 }
 
+std::string FilterSubtype(const winrt::hstring& format)
+{
+  std::string formatStr = winrt::to_string(format);
+  while (formatStr.length() < 4)
+  {
+    formatStr.append(" ");
+  }
+  return formatStr;
+}
+
+winrt::hstring FilterFormat(const std::string& format)
+{
+  std::string formatStr = format;
+
+  auto pos = formatStr.find_first_of(' ');
+  if (pos != std::string::npos)
+  {
+    formatStr = formatStr.substr(0, pos);
+  }
+  return winrt::to_hstring(formatStr);
+}
+
 FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)
 {
   impl_->sources_ = impl_->mc_.FrameSources();
@@ -189,7 +211,7 @@ FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)
       // Skip non-Video formats.
       auto major = curFormat.MajorType();
       if (major != L"Video") continue;
-      if (!IsFormatSupported(winrt::to_string(curFormat.Subtype()))) continue;
+      if (!IsFormatSupported(FilterSubtype(curFormat.Subtype()))) continue;
 
       auto formatInfo = MediaFrameFormatToFormat(curFormat);
 
@@ -198,7 +220,7 @@ FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)
 
       // Set the format
       mediaFrameSource.SetFormatAsync(curFormat).get();
-      winrt::hstring fourCC = winrt::to_hstring(formatInfo.format);
+      winrt::hstring fourCC = FilterFormat(formatInfo.format);
 
       /// {TODO} This switches decoding on and off, but should also be able to switch
       /// to different greyscale image types and similar.
@@ -224,7 +246,7 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
   float fps      = std::round(100.0f * static_cast<float>(frameRate.Numerator()) /
                               static_cast<float>(frameRate.Denominator())) /
               100.0f;
-  return FormatInfo(w, h, fps, winrt::to_string(subType));
+  return FormatInfo(w, h, fps, FilterSubtype(subType));
 }
 
 CameraPlatform::Impl::Impl(CameraPlatform* parent)
@@ -289,7 +311,7 @@ CameraPlatform::Impl::Impl(CameraPlatform* parent)
       auto major = curFormat.MajorType();
       if (major != L"Video") continue;
       auto format = MediaFrameFormatToFormat(curFormat);
-      if (parent_.IsFormatSupported(winrt::to_string(curFormat.Subtype())))
+      if (parent_.IsFormatSupported(FilterSubtype(curFormat.Subtype())))
       {
         parent_.info_.AddFormat(format);
       }
@@ -358,6 +380,14 @@ void CameraPlatform::Impl::OnFrame(
         {
           // ZBA_TIMER(timer, "NV12ToBGRFrame");
           NV12ToBGRFrame(srcPtr, parent_.cur_frame_, src_stride);
+        }
+        else if (format.format == "D16 ")
+        {
+          GreyToFrame(srcPtr, parent_.cur_frame_, src_stride);
+        }
+        else if (format.format == "L8  ")
+        {
+          GreyToFrame(srcPtr, parent_.cur_frame_, src_stride);
         }
         else
         {

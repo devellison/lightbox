@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "log.hpp"
 
 namespace zebral
 {

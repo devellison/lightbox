@@ -290,7 +290,17 @@ void CameraPlatform::Impl::CaptureThread()
       else
       */
       {
-        if (format.format == "YUYV")
+        if (format.format == "GREY")
+        {
+          int src_stride = parent_.cur_frame_.width();
+          GreyToFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+        }
+        else if (format.format == "Z16 ")
+        {
+          int src_stride = parent_.cur_frame_.width() * 2;
+          GreyToFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+        }
+        else if (format.format == "YUYV")
         {
           int src_stride = (parent_.cur_frame_.width() * 2);
           YUY2ToBGRFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);

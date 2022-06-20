@@ -90,8 +90,21 @@ bool FormatInfo::Matches(const FormatInfo& f) const
 uint32_t FourCCToUInt32(const std::string& fmt_format)
 {
   if (fmt_format.empty()) return 0;
-  ZBA_ASSERT(fmt_format.length() == 4, "Invalid frame format string.");
-  return *reinterpret_cast<const uint32_t*>(fmt_format.data());
+
+  // {TODO} OK, sometimes these are GUIDs... we'll want to add support for those later.
+  if (fmt_format.length() > 4)
+  {
+    ZBA_LOG("Invalid frame format string: {}", fmt_format);
+    return 0;
+  }
+
+  // Linux space-pads, but Windows doesn't.
+  auto tmpFmt = fmt_format;
+  while (tmpFmt.length() < 4)
+  {
+    tmpFmt.append(" ");
+  }
+  return *reinterpret_cast<const uint32_t*>(tmpFmt.data());
 }
 
 int ChannelsFromFourCC(const std::string& fmt_format)
@@ -114,8 +127,10 @@ int ChannelsFromFourCC(const std::string& fmt_format)
     case FOURCCTOUINT32("RGBT"):
     case FOURCCTOUINT32("BGRT"):
       return 4;
-    case FOURCCTOUINT32("Z16 "):
-    case FOURCCTOUINT32("GREY"):
+    case FOURCCTOUINT32("D16 "):  // Windows Depth
+    case FOURCCTOUINT32("L8  "):  // Windows IR (?)
+    case FOURCCTOUINT32("Z16 "):  // Linux Depth
+    case FOURCCTOUINT32("GREY"):  // Linux IR
       return 1;
     case 0:
       return 0;
@@ -145,9 +160,11 @@ int BytesPPPCFromFourCC(const std::string& fmt_format)
     case FOURCCTOUINT32("RGBT"):
     case FOURCCTOUINT32("BGRT"):
       return 1;
-    case FOURCCTOUINT32("Z16 "):
+    case FOURCCTOUINT32("Z16 "):  // Linux
+    case FOURCCTOUINT32("D16 "):  // Windows
       return 2;
-    case FOURCCTOUINT32("GREY"):
+    case FOURCCTOUINT32("GREY"):  // Linux
+    case FOURCCTOUINT32("L8  "):  // Windows
       return 1;
     case 0:
       return 0;
