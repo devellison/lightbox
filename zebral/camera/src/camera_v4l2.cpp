@@ -24,6 +24,7 @@
 #include "find_files.hpp"
 #include "log.hpp"
 #include "platform.hpp"
+#include "system_utils.hpp"
 
 namespace zebral
 {
@@ -258,34 +259,46 @@ void CameraPlatform::Impl::CaptureThread()
     {
       auto format = *format_if_set;
       /*
-      if (parent_.decode_)
+      if (parent_.decode_ == DecodeType::SYSTEM)
       {
         // If we've got V4L2 converting to BGRA for us {TODO}
         BGRAToBGRAFrame(buffers_[buffer.index].data, parent_.cur_frame_, src_stride);
       }
       else
       */
+
+      /// {TODO} Don't have system decoding yet for Linux, soon....
+      /// Also fix decisions so we're not doing compares like this.
+      if ((parent_.decode_ == DecodeType::SYSTEM) || (parent_.decode_ == DecodeType::INTERNAL))
       {
         if (format.format == "GREY")
         {
           int src_stride = parent_.cur_frame_.width();
-          GreyToFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+          GreyToFrame(reinterpret_cast<uint8_t*>(buffers_->Get(bufIdx).Data()), parent_.cur_frame_,
+                      src_stride);
         }
         else if (format.format == "Z16 ")
         {
           int src_stride = parent_.cur_frame_.width() * 2;
-          GreyToFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+          GreyToFrame(reinterpret_cast<uint8_t*>(buffers_->Get(bufIdx).Data()), parent_.cur_frame_,
+                      src_stride);
         }
         else if (format.format == "YUYV")
         {
           int src_stride = (parent_.cur_frame_.width() * 2);
-          YUY2ToBGRFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+          YUY2ToBGRFrame(reinterpret_cast<uint8_t*>(buffers_->Get(bufIdx).Data()),
+                         parent_.cur_frame_, src_stride);
         }
         else if (format.format == "NV12")
         {
           int src_stride = (parent_.cur_frame_.width());
-          NV12ToBGRFrame((uint8_t*)buffers_->Get(bufIdx).Data(), parent_.cur_frame_, src_stride);
+          NV12ToBGRFrame(reinterpret_cast<uint8_t*>(buffers_->Get(bufIdx).Data()),
+                         parent_.cur_frame_, src_stride);
         }
+      }
+      else
+      {
+        parent_.CopyRawBuffer(buffers_->Get(bufIdx).Data());
       }
     }
     parent_.OnFrameReceived(parent_.cur_frame_);

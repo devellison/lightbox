@@ -14,9 +14,12 @@ namespace zebral
 // Also:
 // https://en.wikipedia.org/wiki/YUV
 //
-// A great optimized implementation of all of this and more is
+// A great optimized implementation of all of this and much more is
 // Chromium's libyuv
 // https://chromium.googlesource.com/libyuv/libyuv/
+
+// Default to the faster of the single pixel functions
+YUVRGBFUNC YUV2RGB = YUVToRGBFixed;
 
 // Reference implementation. Slow but accurate.
 void YUVToRGB(uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& b)
@@ -24,9 +27,27 @@ void YUVToRGB(uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& 
   double y1 = y - 16;
   double u1 = u - 128;
   double v1 = v - 128;
-  r         = Clamp8bit(std::lround(1.164 * y1 + 1.596 * v1));
-  g         = Clamp8bit(std::lround(1.164 * y1 - 0.392 * u1 - 0.813 * v1));
   b         = Clamp8bit(std::lround(1.164 * y1 + 2.017 * u1));
+  g         = Clamp8bit(std::lround(1.164 * y1 - 0.392 * u1 - 0.813 * v1));
+  r         = Clamp8bit(std::lround(1.164 * y1 + 1.596 * v1));
+}
+
+void YUVToRGBFixed(uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& b)
+{
+  // Do the above, only fixed point math and let the compiler optimize a bit.
+  static constexpr int shift      = 16;
+  static constexpr int multiplier = 1 << shift;
+  static constexpr int half       = multiplier / 2;
+
+  const int y1 = (y - 16) * static_cast<int>(1.164 * multiplier);
+  const int u1 = (u - 128) * static_cast<int>(0.392 * multiplier);
+  const int u2 = (u - 128) * static_cast<int>(2.017 * multiplier);
+  const int v1 = (v - 128) * static_cast<int>(1.596 * multiplier);
+  const int v2 = (v - 128) * static_cast<int>(0.813 * multiplier);
+
+  r = Clamp8bit(((y1 + v1) + half) >> shift);
+  g = Clamp8bit(((y1 - u1 - v2) + half) >> shift);
+  b = Clamp8bit(((y1 + u2) + half) >> shift);
 }
 
 void YUY2ToBGRRow(const uint8_t* src, uint8_t* dst, int width)
@@ -36,9 +57,9 @@ void YUY2ToBGRRow(const uint8_t* src, uint8_t* dst, int width)
 
   for (int x = 0; x < width - 1; x += 2)
   {
-    YUVToRGB(yuy2->y0, yuy2->u, yuy2->v, bgr8->r, bgr8->g, bgr8->b);
+    YUV2RGB(yuy2->y0, yuy2->u, yuy2->v, bgr8->r, bgr8->g, bgr8->b);
     ++bgr8;
-    YUVToRGB(yuy2->y1, yuy2->u, yuy2->v, bgr8->r, bgr8->g, bgr8->b);
+    YUV2RGB(yuy2->y1, yuy2->u, yuy2->v, bgr8->r, bgr8->g, bgr8->b);
     ++bgr8;
     yuy2++;
   }
@@ -46,7 +67,7 @@ void YUY2ToBGRRow(const uint8_t* src, uint8_t* dst, int width)
   // Shouldn't see this unless we're cropping weird.
   if (width & 1)
   {
-    YUVToRGB(yuy2->y0, yuy2->u, yuy2->v, bgr8->r, bgr8->g, bgr8->b);
+    YUV2RGB(yuy2->y0, yuy2->u, yuy2->v, bgr8->r, bgr8->g, bgr8->b);
   }
 }
 
@@ -58,10 +79,10 @@ void NV12ToBGRRow(const uint8_t* src_ptr_y, const uint8_t* src_ptr_uv, uint8_t* 
 
   for (int x = 0; x < width - 1; x += 2)
   {
-    YUVToRGB(nv12_y->y, nv12_uv->u, nv12_uv->v, bgr8->r, bgr8->g, bgr8->b);
+    YUV2RGB(nv12_y->y, nv12_uv->u, nv12_uv->v, bgr8->r, bgr8->g, bgr8->b);
     ++bgr8;
     ++nv12_y;
-    YUVToRGB(nv12_y->y, nv12_uv->u, nv12_uv->v, bgr8->r, bgr8->g, bgr8->b);
+    YUV2RGB(nv12_y->y, nv12_uv->u, nv12_uv->v, bgr8->r, bgr8->g, bgr8->b);
     ++bgr8;
     ++nv12_y;
     // inc uv on alternating pixels
@@ -70,7 +91,7 @@ void NV12ToBGRRow(const uint8_t* src_ptr_y, const uint8_t* src_ptr_uv, uint8_t* 
 
   if (width & 1)
   {
-    YUVToRGB(nv12_y->y, nv12_uv->u, nv12_uv->v, bgr8->r, bgr8->g, bgr8->b);
+    YUV2RGB(nv12_y->y, nv12_uv->u, nv12_uv->v, bgr8->r, bgr8->g, bgr8->b);
   }
 }
 void BGRAToBGRRow(const uint8_t* src, uint8_t* dst, int width)

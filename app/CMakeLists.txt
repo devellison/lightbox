@@ -5,12 +5,6 @@ project(
   VERSION ${CMAKE_PROJECT_VERSION}
   LANGUAGES CXX
 )
-set(CMAKE_VERBOSE_MAKEFILE ON)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(CMAKE_CXX_STANDARD 20)
-
-find_package(OpenCV REQUIRED highgui core)
-find_package(OpenMP)
 
 if(MSVC)
   add_compile_options(/W4 /WX /Zc:preprocessor)

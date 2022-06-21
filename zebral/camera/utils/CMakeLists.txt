@@ -5,14 +5,12 @@ project(
   VERSION ${CMAKE_PROJECT_VERSION}
   LANGUAGES CXX
 )
-set(CMAKE_VERBOSE_MAKEFILE ON)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(CMAKE_CXX_STANDARD 20)
 
 # Add lightbox app (move these to separate library)
 set(ZEB_SRC zebral_camera_util.cpp)
 set(ZEB_INC)
-add_executable(${PROJECT_NAME} ${ZEB_SRC})
+
+add_executable(${PROJECT_NAME} ${ZEB_SRC} ${ZEB_INC})
 target_include_directories(
   ${PROJECT_NAME} PUBLIC zebralcam::zebralcam ${OpenCV_INCLUDE_DIRS}
 )

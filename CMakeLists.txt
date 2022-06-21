@@ -10,6 +10,17 @@ project(
   LANGUAGES CXX
 )
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+set(CMAKE_CXX_STANDARD 20)
+
 # Package info
 set(CPACK_PACKAGE_VENDOR "zebral.net")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Zebral Lightbox Project")
@@ -21,10 +32,6 @@ set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
 include(CPack)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-set(CMAKE_CXX_STANDARD 20)
-
 include(GNUInstallDirs)
 include(CMakePrintHelpers)
 include(GoogleTest)
@@ -33,7 +40,29 @@ enable_testing()
 find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED highgui core)
 find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
-# find_package(OpenMP)
+find_package(OpenMP)
+
+# Setup gtest Note - this seems kinda slow/repeatedly run. Moving to global for
+# now.
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/e2239ee6043f73722e7aa812a459f54a28552929.zip
+)
+set(gtest_force_shared_crt
+    ON
+    CACHE BOOL "" FORCE
+)
+
+# FetchContent_MakeAvailable(googletest) Hack to prevent installing all the
+# googletest stuff with ours
+FetchContent_GetProperties(googletest)
+if(NOT googletest_POPULATED)
+  FetchContent_Populate(googletest)
+  add_subdirectory(
+    ${googletest_SOURCE_DIR} ${googletest_BINARY_DIR} EXCLUDE_FROM_ALL
+  )
+endif()
 
 # High warning level, treat warnings as errors, compile as a console with
 # main().
@@ -44,11 +73,10 @@ if(MSVC)
   )
 else()
   add_compile_options(-Wall -Wextra -pedantic -Werror)
+  find_package(fmt REQUIRED)
 endif()
 
-add_subdirectory(zebral/common)
-add_subdirectory(zebral/camera)
-add_subdirectory(zebral/serial)
+add_subdirectory(zebral)
 add_subdirectory(app)
 add_subdirectory(test)
 

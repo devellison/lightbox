@@ -3,6 +3,7 @@
 #include "find_files.hpp"
 #include "platform.hpp"
 #include "serial_channel.hpp"
+#include "system_utils.hpp"
 
 namespace zebral
 {
@@ -21,7 +22,6 @@ std::vector<SerialInfo> SerialChannel::Enumerate()
     std::string path      = curMatch.dir_entry.path().string();
     std::string path_file = curMatch.dir_entry.path().filename().string();
 
-    /// {TODO} fill these out
     std::string name;
     std::string bus;
     uint16_t vid = 0;

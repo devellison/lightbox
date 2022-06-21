@@ -27,12 +27,3 @@ add_subdirectory(test)
 # Binary and includes...
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${INC} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-# Export a cmake file for package finding
-export(
-  TARGETS ${PROJECT_NAME}
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}Targets.cmake
-)
-set(CMAKE_EXPORT_PACKAGE_REGISTRY ON)
-export(PACKAGE ${PROJECT_NAME})

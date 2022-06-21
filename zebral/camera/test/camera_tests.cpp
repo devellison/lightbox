@@ -7,18 +7,25 @@
 #endif  // _WIN32
 
 #include <fcntl.h>
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <filesystem>
 
 #include "camera_manager.hpp"
 #include "camera_platform.hpp"
+#include "convert.hpp"
 #include "errors.hpp"
 #include "find_files.hpp"
 #include "gtest/gtest.h"
 #include "log.hpp"
 #include "param.hpp"
 #include "platform.hpp"
+
+/// So rude. Something's defining max on me and causing errors with std::max
+#ifdef max
+#undef max
+#endif
 
 using namespace zebral;
 
@@ -47,6 +54,76 @@ TEST(CameraTests, ErrorsAndResults)
     ASSERT_TRUE(error.why() == Result::ZBA_CAMERA_OPEN_FAILED);
     ASSERT_TRUE(error.where().length() != 0);
   }
+}
+
+TEST(CameraTests, ConvertSpeeds)
+{
+  CameraManager cmgr;
+  auto camList = cmgr.Enumerate();
+  if (camList.size() == 0)
+  {
+    ZBA_ERR("NO CAMERAS FOUND, SKIPPING TESTS");
+    return;
+  }
+  auto camera = cmgr.Create(camList[0]);
+  FormatInfo f;
+  f.fps    = 30;
+  f.width  = 640;
+  f.height = 480;
+#if _WIN32
+  f.format = "YUY2";
+#else
+  f.format = "YUYV";
+#endif
+  camera->SetFormat(f, Camera::DecodeType::NONE);
+  camera->Start();
+  auto maybeFrame = camera->GetNewFrame();
+  if (maybeFrame)
+  {
+    auto frame = *maybeFrame;
+    CameraFrame f1, f2;
+    YUV2RGB = YUVToRGB;
+
+    auto start1 = zba_now();
+    for (int i = 0; i < 100; i++)
+    {
+      f1 = YUY2ToBGRFrame(frame.data(), frame.width(), frame.height(),
+                          frame.width() * frame.channels() * frame.bytes_per_channel());
+    }
+    auto time1 = zba_elapsed_sec(start1);
+
+    YUV2RGB     = YUVToRGBFixed;
+    auto start2 = zba_now();
+    for (int i = 0; i < 100; i++)
+      f2 = YUY2ToBGRFrame(frame.data(), frame.width(), frame.height(),
+                          frame.width() * frame.channels() * frame.bytes_per_channel());
+    auto time2 = zba_elapsed_sec(start2);
+    ZBA_LOG("Float: {}  Fixed: {}", time1, time2);
+    ZBA_ASSERT(time1 > time2, "Fixed should be much faster");
+
+    if (0 != memcmp(f1.data(), f2.data(), f1.data_size()))
+    {
+      ZBA_ERR("Pixels different!");
+      size_t diff  = 0;
+      int max_diff = 0;
+      for (size_t i = 0; i < f1.data_size(); i++)
+      {
+        uint8_t b1 = f1.data()[i];
+        uint8_t b2 = f2.data()[i];
+        if (b1 != b2)
+        {
+          max_diff = std::max(std::abs(b1 - b2), max_diff);
+
+          // ZBA_ERR("{}: {} vs {}", i, b1, b2);
+          ++diff;
+        }
+      }
+      ZBA_ERR("{} pixels different out of {}", diff, f1.data_size());
+      ZBA_ASSERT(max_diff <= 1, "Error must be rounding, not a real error!");
+    }
+  }
+
+  camera->Stop();
 }
 
 // You need at least one source for this to test stuff.

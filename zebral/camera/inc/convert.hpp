@@ -51,9 +51,21 @@ uint8_t Clamp8bit(T value)
   return static_cast<uint8_t>(std::clamp(value, kMin8, kMax8));
 }
 
+/// Definition for pixel-wise yuv to rgb function
+typedef void (*YUVRGBFUNC)(uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& b);
+
+/// You can point this to a different conversion func if desired.
+/// Especially for speed checking or accuracy checking.
+/// Defaults to fixed-point for decent speed, although not
+/// nearly what you can get if you do it in larger chunks with SIMD.
+extern YUVRGBFUNC YUV2RGB;
+
 /// raw yuv to RGB conversion
 /// right now this is a slow reference version
 void YUVToRGB(uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& b);
+
+/// Fixed point - a bit faster.
+void YUVToRGBFixed(uint8_t y, uint8_t u, uint8_t v, uint8_t& r, uint8_t& g, uint8_t& b);
 
 /// Convert a row of YUY2
 void YUY2ToBGRRow(const uint8_t* src, uint8_t* dst, int width);

@@ -127,7 +127,7 @@ int ChannelsFromFourCC(const std::string& fmt_format)
     case FOURCCTOUINT32("BGRT"):
       return 4;
     case FOURCCTOUINT32("D16 "):  // Windows Depth
-    case FOURCCTOUINT32("L8  "):  // Windows IR (?)
+    case FOURCCTOUINT32("L8  "):  // Windows IR
     case FOURCCTOUINT32("Z16 "):  // Linux Depth
     case FOURCCTOUINT32("GREY"):  // Linux IR
       return 1;

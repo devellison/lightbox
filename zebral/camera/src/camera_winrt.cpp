@@ -227,8 +227,9 @@ FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)
       /// Much work to be done on decoding still.
       impl_->reader_ =
           impl_->mc_
-              .CreateFrameReaderAsync(mediaFrameSource,
-                                      (decode_ ? MediaEncodingSubtypes::Bgra8() : fourCC))
+              .CreateFrameReaderAsync(
+                  mediaFrameSource,
+                  ((decode_ == DecodeType::SYSTEM) ? MediaEncodingSubtypes::Bgra8() : fourCC))
               .get();
 
       return formatInfo;
@@ -347,11 +348,9 @@ void CameraPlatform::Impl::OnFrame(
 
       IMemoryBufferReference ref = bmpBuffer.CreateReference();
       // The system is doing the decoding for us.
-      if (parent_.decode_)
+      if (parent_.decode_ == DecodeType::SYSTEM)
       {
-        /// {TODO} Hardcoded bgra8, and doesn't account for padded stride or encodings.
-        /// Right now if we switch to undecoded, we'll still have the original-sized
-        /// buffer and it will display completely wrong.
+        /// {TODO} Hardcoded bgra8, need to add options for grey/depth
         uint8_t* dataPtr = nullptr;
         uint32_t dataLen = 0;
         auto interop     = ref.as<IMemoryBufferByteAccess>();
@@ -359,7 +358,7 @@ void CameraPlatform::Impl::OnFrame(
 
         BGRAToBGRFrame(dataPtr, parent_.cur_frame_, src_stride);
       }
-      else
+      else if (parent_.decode_ == DecodeType::INTERNAL)
       {
         // For now we'll try decoding it...
         // We'll also want a raw option.
@@ -393,6 +392,14 @@ void CameraPlatform::Impl::OnFrame(
         {
           ZBA_ERR("Don't currently have a converter for {}", format.format);
         }
+      }
+      else if (parent_.decode_ == DecodeType::NONE)
+      {
+        uint8_t* dataPtr = nullptr;
+        uint32_t dataLen = 0;
+        auto interop     = ref.as<IMemoryBufferByteAccess>();
+        check_hresult(interop->GetBuffer(&dataPtr, &dataLen));
+        CopyRawBuffer(dataPtr, src_stride);
       }
 
       ref.Close();
