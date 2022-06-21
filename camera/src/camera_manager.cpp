@@ -11,7 +11,6 @@
 
 namespace zebral
 {
-
 CameraManager::CameraManager() {}
 
 std::vector<CameraInfo> CameraManager::Enumerate()
