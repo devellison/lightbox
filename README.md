@@ -5,7 +5,7 @@ More details TBA.
 [You can see what I'm likely working on here](https://github.com/users/devellison/projects/1).
 
 It doesn't do much yet - base firmware in `./firmware` and the start of the camera
-library in `./camera` are all that's there.
+library in `./zebral/camera` are all that's there.
 
 Firmware responds to serial line commands or a button. "help" for help.
 Camera can capture frames via WinRT on Windows, but it's still using OpenCV
@@ -19,7 +19,7 @@ Currently developing it with:
 
 The Zebral Camera Library is being developed while working on the lightbox,
 and can be built as part of the lightbox project or separately - look in
-./camera, or in the ./lib and ./include directories of an install package.
+./zebral/camera, or in the ./lib and ./include directories of an install package.
 
 - Install dependencies:
   - As it's actively being developed, might check the [workflows](https://github.com/devellison/lightbox/tree/main/.github/workflows) for latest requirements for building.

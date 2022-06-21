@@ -10,6 +10,7 @@ alone as well once it's done and will likely get its own repository at that poin
 
 You should be able to build this directory solo, or integrate it easily with other projects.
 
-So far, Windows is working with C++/WinRT.  Advanced controls (exposure/focus) aren't yet provided.
-Linux currently is using OpenCV for testing, but planning to target V4L2 directly soon.
+So far, Windows is working with C++/WinRT. Linux currently is using V4L2. 
+Advanced controls (exposure/focus) aren't yet provided, but you can capture frames.
+
 

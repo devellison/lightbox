@@ -46,8 +46,9 @@ else()
   add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-add_subdirectory(camera)
-add_subdirectory(serial)
+add_subdirectory(zebral/common)
+add_subdirectory(zebral/camera)
+add_subdirectory(zebral/serial)
 add_subdirectory(app)
 add_subdirectory(test)
 
@@ -84,11 +85,14 @@ doxygen_add_docs(
   ${PROJECT_NAME}_docs
   ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   ${PROJECT_NAME}_docs
-  ${CMAKE_CURRENT_SOURCE_DIR}/camera/README.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/zebral/camera/README.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/zebral/serial/README.md
   ${CMAKE_CURRENT_SOURCE_DIR}/app/src
   ${CMAKE_CURRENT_SOURCE_DIR}/app/inc
-  ${CMAKE_CURRENT_SOURCE_DIR}/camera/src
-  ${CMAKE_CURRENT_SOURCE_DIR}/camera/inc
+  ${CMAKE_CURRENT_SOURCE_DIR}/zebral/camera/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/zebral/camera/inc
+  ${CMAKE_CURRENT_SOURCE_DIR}/zebral/serial/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/zebral/serial/inc
   ${CMAKE_CURRENT_SOURCE_DIR}/firmware/
   # ALL
   COMMENT "Generating lightbox docs"

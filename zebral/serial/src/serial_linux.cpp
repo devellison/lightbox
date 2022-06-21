@@ -2,14 +2,14 @@
 #include <fstream>
 #include "find_files.hpp"
 #include "platform.hpp"
-#include "serial_line_channel.hpp"
+#include "serial_channel.hpp"
 
 namespace zebral
 {
-SerialLineChannel::SerialLineChannel(const SerialInfo& info) : info_(info) {}
-SerialLineChannel::~SerialLineChannel() {}
+SerialChannel::SerialChannel(const SerialInfo& info) : info_(info) {}
+SerialChannel::~SerialChannel() {}
 
-std::vector<SerialInfo> SerialLineChannel::Enumerate()
+std::vector<SerialInfo> SerialChannel::Enumerate()
 {
   /// {TODO} right now we're just enumerating USB CDC_ACM devices (modern USB serial devices)
   ///        should probably extend this to other types of serial, but these do what I need.

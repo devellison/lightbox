@@ -6,9 +6,11 @@ project(
 )
 
 # Add serial library
-set(SRC src/serial_line_channel.cpp src/serial_line_linux.cpp src/serial_line_winrt.cpp)
+set(SRC src/serial_channel.cpp src/serial_linux.cpp src/serial_winrt.cpp
+        src/serial_info.cpp
+)
 
-set(INC inc/serial_line_channel.hpp)
+set(INC inc/serial_channel.hpp inc/serial_info.hpp)
 
 add_library(${PROJECT_NAME} ${SRC} ${INC})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})

@@ -1,5 +1,7 @@
-#include "serial_line_channel.hpp"
-
+/// \file serial_info.cpp
+/// Serial device information implementation
+#include "serial_info.hpp"
+#include "log.hpp"
 #include "platform.hpp"
 
 namespace zebral
@@ -50,5 +52,4 @@ std::ostream& operator<<(std::ostream& os, const SerialInfo& s)
   os << deviceOut << std::endl;
   return os;
 }
-
 }  // namespace zebral

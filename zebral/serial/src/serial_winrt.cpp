@@ -2,7 +2,7 @@
 #include "errors.hpp"
 #include "log.hpp"
 #include "platform.hpp"
-#include "serial_line_channel.hpp"
+#include "serial_channel.hpp"
 
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.h>
@@ -25,10 +25,10 @@ using namespace Windows::Foundation::Collections;
 
 namespace zebral
 {
-SerialLineChannel::SerialLineChannel(const SerialInfo& info) : info_(info) {}
-SerialLineChannel::~SerialLineChannel() {}
+SerialChannel::SerialChannel(const SerialInfo& info) : info_(info) {}
+SerialChannel::~SerialChannel() {}
 
-std::vector<SerialInfo> SerialLineChannel::Enumerate()
+std::vector<SerialInfo> SerialChannel::Enumerate()
 {
   std::vector<SerialInfo> deviceList;
 
