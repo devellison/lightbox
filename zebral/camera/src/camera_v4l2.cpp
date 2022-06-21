@@ -149,8 +149,9 @@ FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)  // info)
   v4l2_frmsizeenum vsize;
   FormatInfo fmt_info = info;
 
-  auto findFormat = [&](const v4l2_fmtdesc& fmtdesc, const v4l2_frmsizeenum& frmsize,
-                        const FormatInfo& checkFmt) {
+  auto findFormat =
+      [&](const v4l2_fmtdesc& fmtdesc, const v4l2_frmsizeenum& frmsize, const FormatInfo& checkFmt)
+  {
     if (info.Matches(checkFmt))
     {
       fmt_info = checkFmt;
@@ -321,8 +322,8 @@ CameraPlatform::Impl::Impl(CameraPlatform* parent)
               Result::ZBA_CAMERA_OPEN_FAILED);
   }
 
-  auto saveFormat = [this](const v4l2_fmtdesc&, const v4l2_frmsizeenum&,
-                           const FormatInfo& fmt_info) {
+  auto saveFormat = [this](const v4l2_fmtdesc&, const v4l2_frmsizeenum&, const FormatInfo& fmt_info)
+  {
     if (parent_.IsFormatSupported(fmt_info.format))
     {
       parent_.info_.AddFormat(fmt_info);

@@ -67,15 +67,17 @@ std::optional<CameraFrame> Camera::GetNewFrame(size_t timeout_ms)
 
   std::unique_lock<std::mutex> lock(frame_mutex_);
   // Wait for a frame to come in - if we get one, stop waiting and return it.
-  cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [&] {
-    if (ts < last_timestamp_)
-    {
-      frame = last_frame_;
-      ts    = last_timestamp_;
-      return true;
-    }
-    return false;
-  });
+  cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
+               [&]
+               {
+                 if (ts < last_timestamp_)
+                 {
+                   frame = last_frame_;
+                   ts    = last_timestamp_;
+                   return true;
+                 }
+                 return false;
+               });
 
   if (!frame.empty())
   {

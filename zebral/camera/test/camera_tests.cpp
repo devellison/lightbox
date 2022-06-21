@@ -113,7 +113,8 @@ TEST(CameraTests, CameraSanity)
 
     TimeStamp lastTimestamp = TimeStampNow();
     // Callback method - start it and let it pump the frames
-    auto frameCallback = [&](const CameraInfo&, const CameraFrame& image, TimeStamp timestamp) {
+    auto frameCallback = [&](const CameraInfo&, const CameraFrame& image, TimeStamp timestamp)
+    {
       ASSERT_TRUE(image.empty() == false);
       ASSERT_TRUE(timestamp > lastTimestamp);
       lastTimestamp = timestamp;
@@ -195,7 +196,7 @@ TEST(CameraTests, Params)
   ParamSubscribers callbacks;
   ChangeWatch watch;
   ParamCb guiCb    = std::bind(&ChangeWatch::OnVolumeChangedGUI, &watch, std::placeholders::_1,
-                            std::placeholders::_2);
+                               std::placeholders::_2);
   ParamCb deviceCb = std::bind(&ChangeWatch::OnVolumeChangedDevice, &watch, std::placeholders::_1,
                                std::placeholders::_2);
   callbacks.insert({"Gui", guiCb});
