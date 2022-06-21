@@ -87,9 +87,6 @@ std::vector<CameraInfo> CameraPlatform::Enumerate()
   {
     std::string path      = curMatch.dir_entry.path().string();
     std::string path_file = curMatch.dir_entry.path().filename().string();
-
-    ZBA_LOG("Checking {}", path.c_str());
-
     v4l2_capability caps;
     memset(&caps, 0, sizeof(caps));
     {
@@ -106,46 +103,25 @@ std::vector<CameraInfo> CameraPlatform::Enumerate()
 
     std::string name(reinterpret_cast<char*>(&caps.card[0]));
     std::string driver(reinterpret_cast<char*>(&caps.driver[0]));
+
+    // Debating on bus - for serial devices we're just using the USB
+    // path which is probably more useful to us if we want to select a
+    // device based on where it's plugged in on USB, which is my usual
+    // use-case.  I think for now we'll start with the caps bus, but
+    // if it IS a usb device, switch to usb bus.
     std::string bus(reinterpret_cast<char*>(&caps.bus_info[0]));
 
+    // We already have a friendly device name, but there's another in the
+    // usb path
+    std::string usbname;
+
+    // VID/PID identify device type
     uint16_t vid = 0;
     uint16_t pid = 0;
+
     if (bus.compare(0, 3, "usb") == 0)
     {
-      /// {TODO} It's a USB device. Track down the VID/PID
-      // / sys / bus / usb / drivers / uvcvideo
-      auto usbDevAddrs = FindFiles("/sys/bus/usb/drivers/uvcvideo/", "^([0-9-.]*):([0-9-.]*)$");
-      for (auto& curDevAddr : usbDevAddrs)
-      {
-        if (!std::filesystem::exists(curDevAddr.dir_entry.path() / "video4linux"))
-        {
-          continue;
-        }
-
-        auto usbVideoNames =
-            FindFiles(curDevAddr.dir_entry.path() / "video4linux", "^video([0-9]*)$");
-        for (auto curVideo : usbVideoNames)
-        {
-          if (path_file == curVideo.dir_entry.path().filename().string())
-          {
-            // Grab idProduct and idVendor files
-            std::ifstream prodFile(
-                zba_format("/sys/bus/usb/drivers/usb/{}/idProduct", curDevAddr.matches[1]));
-            std::ifstream vendFile(
-                zba_format("/sys/bus/usb/drivers/usb/{}/idVendor", curDevAddr.matches[1]));
-            if (prodFile.is_open() && vendFile.is_open())
-            {
-              std::string prodStr, vendStr;
-              std::getline(prodFile, prodStr);
-              std::getline(vendFile, vendStr);
-              vid = std::stol(vendStr, 0, 16);
-              pid = std::stol(prodStr, 0, 16);
-            }
-            break;
-          }
-        }
-        if (vid) break;
-      }
+      GetUSBInfo(path_file, "uvcvideo", "video4linux", "video", vid, pid, bus, usbname);
     }
 
     // For now we want to skip the metadata devices.

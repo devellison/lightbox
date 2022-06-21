@@ -4,16 +4,16 @@
 #include "serial_line_channel.hpp"
 
 using namespace zebral;
+
 TEST(SerialTest, Enumeration)
 {
-#if _WIN32
   auto devices = SerialLineChannel::Enumerate();
   for (const auto& curDevice : devices)
   {
-    std::cout << std::format("({}) : ({})", curDevice.first, curDevice.second) << std::endl;
+    std::cout << curDevice << std::endl;
   }
-#endif
 }
+
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);

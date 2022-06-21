@@ -11,13 +11,12 @@ namespace zebral
 {
 std::ostream& operator<<(std::ostream& os, const CameraInfo& camInfo)
 {
-  os << "Camera " << camInfo.index << ": [" << camInfo.name << "]" << std::endl;
-  os << "    path:" << camInfo.path << " bus:" << camInfo.bus << " driver:" << camInfo.driver
+  os << "Camera " << camInfo.index << ": " << camInfo.name << std::endl;
+  os << "    path: [" << camInfo.path << "] bus:<" << camInfo.bus << "> driver:" << camInfo.driver
      << std::endl;
-  os << "    vid:" << std::hex << camInfo.vid << " pid:" << std::hex << camInfo.pid << std::dec
-     << std::endl;
-  os << "    <" << camInfo.path << ">" << std::endl;
-#define ENUM_FORMATS 1
+  os << "    vid:pid: (" << std::hex << camInfo.vid << ":" << std::hex << camInfo.pid << std::dec
+     << ")" << std::endl;
+#define ENUM_FORMATS 0
 #if ENUM_FORMATS
   int i = 0;
   for (auto const& curFormat : camInfo.formats)

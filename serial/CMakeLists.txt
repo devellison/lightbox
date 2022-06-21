@@ -6,7 +6,7 @@ project(
 )
 
 # Add serial library
-set(SRC src/serial_line_channel.cpp)
+set(SRC src/serial_line_channel.cpp src/serial_line_linux.cpp src/serial_line_winrt.cpp)
 
 set(INC inc/serial_line_channel.hpp)
 

@@ -34,13 +34,13 @@ void enumerate()
 #if __linux__
     // The bus is valid on windows, but fugly.
     // linux the path is helpful.
-    std::cout << " (" << curInfo.path << ")";
+    std::cout << " [" << curInfo.path << "] <" << curInfo.bus << ">";
 #endif
 
     if (curInfo.vid)
     {
-      std::cout << " [" << std::hex << curInfo.vid << ":" << std::hex << curInfo.pid << std::dec
-                << "]";
+      std::cout << " (" << std::hex << curInfo.vid << ":" << std::hex << curInfo.pid << std::dec
+                << ")";
     }
     std::cout << std::endl;
   }
