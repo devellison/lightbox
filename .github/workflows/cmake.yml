@@ -31,7 +31,7 @@ jobs:
     - name: Build fmtlib
       run: |
         git clone https://github.com/fmtlib/fmt.git externals/fmt
-        cmake -S externals/fmt -B externals/fmt/build
+        cmake -S externals/fmt -B externals/fmt/build -DCMAKE_POSITION_INDEPENDENT_CODE=1
         cmake --build externals/fmt/build --config Release
         sudo cmake --build externals/fmt/build --config Release -t install
 
