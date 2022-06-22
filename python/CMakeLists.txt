@@ -14,6 +14,10 @@ target_link_libraries(
                           zebralcam::zebralcam
 )
 
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    target_compile_options(${PROJECT_NAME} INTERFACE -fsized-deallocation)
+endif()
+
 add_subdirectory(test)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})

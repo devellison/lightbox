@@ -1,5 +1,11 @@
 /// \file zebralpy.cpp
 /// Create python bindings for zebral library
+
+// Disable unused variable warning from pybind11...
+#if _WIN32
+#pragma warning(disable : 4189)
+#endif
+
 #include <pybind11/complex.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
