@@ -1,6 +1,5 @@
 /// \file zebralpy.cpp
 /// Create python bindings for zebral library
-#include <pybind11/chrono.h>
 #include <pybind11/complex.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
@@ -32,13 +31,11 @@ PYBIND11_MODULE(zebralpy, m)
       .def_readwrite("channels", &FormatInfo::channels)
       .def_readwrite("bytespppc", &FormatInfo::bytespppc)
       .def_readwrite("format", &FormatInfo::format)
-      .def("__repr__",
-           [](const FormatInfo &f)
-           {
-             std::stringstream ss;
-             ss << f;
-             return "<" + ss.str() + ">";
-           });
+      .def("__repr__", [](const FormatInfo &f) {
+        std::stringstream ss;
+        ss << f;
+        return "<" + ss.str() + ">";
+      });
 
   py::class_<CameraInfo>(m, "CameraInfo")
       .def(py::init<int, const std::string &, const std::string &, const std::string &,
@@ -51,13 +48,11 @@ PYBIND11_MODULE(zebralpy, m)
       .def_readwrite("vid", &CameraInfo::vid)
       .def_readwrite("pid", &CameraInfo::pid)
       .def_readwrite("selected_format", &CameraInfo::selected_format)
-      .def("__repr__",
-           [](const CameraInfo &f)
-           {
-             std::stringstream ss;
-             ss << f;
-             return "<" + ss.str() + ">";
-           });
+      .def("__repr__", [](const CameraInfo &f) {
+        std::stringstream ss;
+        ss << f;
+        return "<" + ss.str() + ">";
+      });
 
   py::class_<CameraFrame>(m, "CameraFrame")
       .def(py::init<>())
@@ -72,8 +67,9 @@ PYBIND11_MODULE(zebralpy, m)
       .def("is_signed", &CameraFrame::is_signed)
       .def("is_floating", &CameraFrame::is_floating)
       .def("data_size", &CameraFrame::data_size)
-      .def("data", [](CameraFrame &f)
-           { return pybind11::array_t<unsigned char>({f.data_size()}, {1}, f.data()); });
+      .def("data", [](CameraFrame &f) {
+        return pybind11::array_t<unsigned char>({f.data_size()}, {1}, f.data());
+      });
 
   py::class_<CameraManager>(m, "CameraManager")
       .def(py::init<>())

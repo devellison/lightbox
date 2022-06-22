@@ -10,6 +10,7 @@ env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   OpenCV_DIR: C:/tools/opencv/build
+  pybind11_DIR: c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages
     
 jobs:
   build:
@@ -30,9 +31,6 @@ jobs:
 
     - name: Install opencv and graphviz
       run: choco install opencv graphviz
-
-    - name: Setup python path
-      run: echo " c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
