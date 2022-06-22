@@ -4,11 +4,13 @@
 #include "camera_platform.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <regex>
 
 #include "convert.hpp"
 #include "errors.hpp"
 #include "log.hpp"
+#include "param.hpp"
 #include "platform.hpp"
 
 #include <winrt/Windows.ApplicationModel.Core.h>
@@ -58,11 +60,15 @@ class CameraPlatform::Impl
  public:
   Impl(CameraPlatform* parent);
 
-  void CheckNewControlsSupported();
-
   /// Frame callback from the frame reader.
   void OnFrame(const Windows::Media::Capture::Frames::MediaFrameReader& reader,
                const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&);
+
+  /// On capture start
+  void Start();
+
+  /// On capture stop
+  void Stop();
 
   /// Takes a device path string, returns vid/pid if found.
   /// \param busPath - Windows ID string (bus path)
@@ -70,6 +76,9 @@ class CameraPlatform::Impl
   /// \param pid - receives USB pid on success
   /// \return true if vid/pid found.
   static bool VidPidFromBusPath(const std::string& busPath, uint16_t& vid, uint16_t& pid);
+
+  void OnParamChanged(Param* param, bool raw_set, bool auto_mode);
+  void AddParameter(const std::string& name, MediaDeviceControl ctrl);
 
   CameraPlatform& parent_;                       ///< CameraPlatform that owns this Impl
   MediaCapture mc_;                              ///< MediaCapture base object
@@ -79,6 +88,10 @@ class CameraPlatform::Impl
   MediaFrameReader reader_;                      ///< Reader once we've picked a source
   event_token reader_token_;                     ///< Callback token
   bool started_;                                 ///< True if started.
+
+  VideoDeviceController videoDevCtrl_;  ///< VideoDeviceController for the device
+  std::mutex paramControlMutex_;        ///< Lock for map
+  std::map<std::string, MediaDeviceControl> paramControlMap_;  ///< maps param names to controls
 };
 
 // CameraWin main class
@@ -93,21 +106,31 @@ CameraPlatform::~CameraPlatform() {}
 
 void CameraPlatform::OnStart()
 {
-  if (impl_->reader_)
-  {
-    impl_->reader_token_ = impl_->reader_.FrameArrived({impl_.get(), &Impl::OnFrame});
-    impl_->reader_.StartAsync().get();
-    impl_->started_ = true;
-  }
+  impl_->Start();
 }
 
 void CameraPlatform::OnStop()
 {
-  if (impl_->started_ && impl_->reader_)
+  impl_->Stop();
+}
+
+void CameraPlatform::Impl::Start()
+{
+  if (reader_)
   {
-    impl_->reader_.FrameArrived(impl_->reader_token_);
-    impl_->reader_.StopAsync().get();
-    impl_->started_ = false;
+    reader_token_ = reader_.FrameArrived({this, &Impl::OnFrame});
+    reader_.StartAsync().get();
+    started_ = true;
+  }
+}
+
+void CameraPlatform::Impl::Stop()
+{
+  if (started_ && reader_)
+  {
+    reader_.FrameArrived(reader_token_);
+    reader_.StopAsync().get();
+    started_ = false;
   }
 }
 
@@ -176,6 +199,15 @@ std::vector<CameraInfo> CameraPlatform::Enumerate()
   return cameras;
 }
 
+/// Convert from windows hstring to std::string for fourCC formats.
+///
+/// Note that Windows fourCC strings are sometimes terminated early,
+/// e.g. "L8" instead of "L8  ", whereas V4L2 strings are space
+/// padded.
+///
+/// Also note that sometimes they just stick a full GUID string or
+/// something else random in, so we need to back away from using
+/// the int32 <-> fourCC conversion.
 std::string FilterSubtype(const winrt::hstring& format)
 {
   std::string formatStr = winrt::to_string(format);
@@ -186,6 +218,8 @@ std::string FilterSubtype(const winrt::hstring& format)
   return formatStr;
 }
 
+/// Convert from std::string to windows hstring for fourCC
+/// formats.  This also removes any padding.
 winrt::hstring FilterFormat(const std::string& format)
 {
   std::string formatStr = format;
@@ -240,21 +274,21 @@ FormatInfo CameraPlatform::OnSetFormat(const FormatInfo& info)
 
 FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
 {
-  auto w         = curFormat.VideoFormat().Width();
-  auto h         = curFormat.VideoFormat().Height();
-  auto subType   = curFormat.Subtype();
   auto frameRate = curFormat.FrameRate();
   float fps      = std::round(100.0f * static_cast<float>(frameRate.Numerator()) /
                          static_cast<float>(frameRate.Denominator())) /
               100.0f;
-  return FormatInfo(w, h, fps, FilterSubtype(subType));
+
+  return FormatInfo(curFormat.VideoFormat().Width(), curFormat.VideoFormat().Height(), fps,
+                    FilterSubtype(curFormat.Subtype()));
 }
 
 CameraPlatform::Impl::Impl(CameraPlatform* parent)
     : parent_(*parent),
       reader_(nullptr),
       started_(false),
-      device_(nullptr)
+      device_(nullptr),
+      videoDevCtrl_(nullptr)
 {
   auto devices     = Windows::Media::Capture::Frames::MediaFrameSourceGroup::FindAllAsync().get();
   bool initialized = false;
@@ -296,12 +330,6 @@ CameraPlatform::Impl::Impl(CameraPlatform* parent)
 
   // {TODO} Okay, this is weird. The frameSources map has the sources, with Source#0@ prepending
   // to their IDs. Also the case on the ending /global is different. Go figure.
-  //
-  // I'm not sure why - this is something to investigate. But it causes a TryLookup() to fail.
-  //
-  // On the other hand.... we initialized the mediacapture object with just our device,
-  // will it have other devices? It appears not, so just go through all the sources.
-  // Some may be IR/DEPTH/etc. Need to test those.
   for (const auto& curSource : frameSources)
   {
     device_      = curSource.Value();
@@ -319,17 +347,48 @@ CameraPlatform::Impl::Impl(CameraPlatform* parent)
       parent_.AddAllModeEntry(format);
     }
   }
+
+  // Can we see the properties at this point?
+  videoDevCtrl_ = mc_.VideoDeviceController();
+  AddParameter("Exposure", videoDevCtrl_.Exposure());
+  AddParameter("Focus", videoDevCtrl_.Focus());
+  AddParameter("Brightness", videoDevCtrl_.Brightness());
+  AddParameter("Contrast", videoDevCtrl_.Contrast());
+  AddParameter("WhiteBalance", videoDevCtrl_.WhiteBalance());
+  AddParameter("Hue", videoDevCtrl_.Hue());
+  AddParameter("Pan", videoDevCtrl_.Pan());
+  AddParameter("Roll", videoDevCtrl_.Roll());
+  AddParameter("Tilt", videoDevCtrl_.Tilt());
 }
 
-void CameraPlatform::Impl::CheckNewControlsSupported()
+void CameraPlatform::Impl::AddParameter(const std::string& name, MediaDeviceControl ctrl)
 {
-  /// Test function...
-  /// {TODO} Exposure controls and similar off VideoDeviceController() don't work.
-  /// What it looks like is that they're unimplemented, so we'll have to dig deeper.
-  /// Setting/Getting the KS properties directly appears to be how software that does this
-  /// gets it done, so we'll go there.
-  /// mc_.VideoDeviceController().GetDeviceProperty()
+  if (ctrl)
+  {
+    auto caps = ctrl.Capabilities();
+    if (caps.Supported())
+    {
+      {
+        std::lock_guard<std::mutex> lock(paramControlMutex_);
+        paramControlMap_.emplace(name, ctrl);
+      }
+      bool automode = false;
+      ctrl.TryGetAuto(automode);
+      double value = 0.0;
+      ctrl.TryGetValue(value);
+      ParamSubscribers callbacks{
+          {name, std::bind(&CameraPlatform::Impl::OnParamChanged, this, std::placeholders::_1,
+                           std::placeholders::_2, std::placeholders::_3)}};
+      auto param = new ParamRanged<double, double>(name, callbacks, value, caps.Default(),
+                                                   caps.Min(), caps.Max(), automode,
+                                                   RawToScaledNormal, ScaledToRawNormal);
+
+      std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
+      parent_.parameters_.emplace(name, std::shared_ptr<Param>(dynamic_cast<Param*>(param)));
+    }
+  }
 }
+
 void CameraPlatform::Impl::OnFrame(
     const Windows::Media::Capture::Frames::MediaFrameReader& reader,
     const Windows::Media::Capture::Frames::MediaFrameArrivedEventArgs&)
@@ -414,6 +473,62 @@ void CameraPlatform::Impl::OnFrame(
   else
   {
     ZBA_LOG("Failed aquire latest.");
+  }
+}
+
+void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool auto_mode)
+{
+  auto name        = param->name();
+  auto paramRanged = dynamic_cast<ParamRanged<double, double>*>(param);
+  if (paramRanged)
+  {
+    MediaDeviceControl ctrl(nullptr);
+    {
+      std::lock_guard<std::mutex> lock(paramControlMutex_);
+      auto iter = paramControlMap_.find(name);
+      if (iter != paramControlMap_.end())
+      {
+        ctrl = iter->second;
+      }
+      else
+      {
+        ZBA_ERR("Didn't find matching control!");
+        return;
+      }
+    }
+
+    ZBA_LOG("Param {} changed ( RawSet: {} - Raw:{} Scaled:{})", name, raw_set, paramRanged->get(),
+            paramRanged->getScaled());
+
+    if ((!raw_set) && ctrl)
+    {
+      bool in_auto = false;
+      ctrl.TryGetAuto(in_auto);
+      if (auto_mode != in_auto)
+      {
+        ctrl.TrySetAuto(auto_mode);
+      }
+
+      if (!auto_mode)
+      {
+        ctrl.TrySetValue(paramRanged->get());
+      }
+      else
+      {
+        double value = paramRanged->get();
+        ctrl.TryGetValue(value);
+        if (std::abs(value - paramRanged->get()) > std::numeric_limits<double>::epsilon())
+        {
+          // If it's in auto, and we're setting it from the GUI, reset it from the hardware.
+          paramRanged->set(value);
+          ZBA_LOG("Auto mode. Value: {} Scaled: {}", paramRanged->get(), paramRanged->getScaled());
+        }
+      }
+    }
+  }
+  else
+  {
+    ZBA_LOG("Param {} changed. RawSet: {}", name, raw_set);
   }
 }
 

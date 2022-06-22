@@ -18,9 +18,6 @@
 
 namespace zebral
 {
-/// Number of digits to use for seconds precision
-static constexpr int ZBA_LOG_PRECISION = 4;
-
 #define ZBA_EXPSTRING(x)  #x                ///< line-expansion for ZBA_LOCINFO
 #define ZBA_STRINGCONV(x) ZBA_EXPSTRING(x)  ///< line-expansion for ZBA_LOCINFO
 /// Convert location in source code to string

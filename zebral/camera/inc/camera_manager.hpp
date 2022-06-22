@@ -4,12 +4,14 @@
 #ifndef LIGHTBOX_CAMERA_MANAGER_HPP_
 #define LIGHTBOX_CAMERA_MANAGER_HPP_
 
+#include <memory>
 #include <vector>
-#include "camera.hpp"
-#include "camera_info.hpp"
 
 namespace zebral
 {
+struct CameraInfo;
+class Camera;
+
 /// Enumerates and creates cameras
 ///
 /// Right now, this is a really simplistic class, and doesn't watch disconnects or usage and just

@@ -67,17 +67,15 @@ std::optional<CameraFrame> Camera::GetNewFrame(size_t timeout_ms)
 
   std::unique_lock<std::mutex> lock(frame_mutex_);
   // Wait for a frame to come in - if we get one, stop waiting and return it.
-  cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
-               [&]
-               {
-                 if (ts < last_timestamp_)
-                 {
-                   frame = last_frame_;
-                   ts    = last_timestamp_;
-                   return true;
-                 }
-                 return false;
-               });
+  cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [&] {
+    if (ts < last_timestamp_)
+    {
+      frame = last_frame_;
+      ts    = last_timestamp_;
+      return true;
+    }
+    return false;
+  });
 
   if (!frame.empty())
   {
@@ -238,6 +236,26 @@ std::ostream& operator<<(std::ostream& os, const CameraFrame& camFrame)
   os << "Frame: " << camFrame.width() << ", " << camFrame.height() << " " << camFrame.channels()
      << " " << camFrame.bytes_per_channel() << std::endl;
   return os;
+}
+std::vector<std::string> Camera::GetParameterNames()
+{
+  std::vector<std::string> names;
+  std::lock_guard<std::mutex> lock(parameter_mutex_);
+  for (auto& pair : parameters_)
+  {
+    names.emplace_back(pair.first);
+  }
+  return names;
+}
+std::shared_ptr<Param> Camera::GetParameter(const std::string& name)
+{
+  std::lock_guard<std::mutex> lock(parameter_mutex_);
+  auto iter = parameters_.find(name);
+  if (iter != parameters_.end())
+  {
+    return iter->second;
+  }
+  return nullptr;
 }
 
 }  // namespace zebral

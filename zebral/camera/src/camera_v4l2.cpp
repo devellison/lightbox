@@ -23,6 +23,7 @@
 #include "errors.hpp"
 #include "find_files.hpp"
 #include "log.hpp"
+#include "param.hpp"
 #include "platform.hpp"
 #include "system_utils.hpp"
 
@@ -46,6 +47,9 @@ class CameraPlatform::Impl
   /// calling the callback for each one.
   void EnumerateModes(ModeCallback cb);
 
+  /// Enumerate controls and set up enabled ones.
+  void EnumerateControls();
+
   /// Thread that reads data from the camera and calls callbacks
   void CaptureThread();
 
@@ -55,13 +59,102 @@ class CameraPlatform::Impl
   /// Stops the camera
   void Stop();
 
+  void OnParamChanged(Param* param, bool raw_set, bool auto_mode);
+
+  void AddParameter(const std::string& name, int ioctl_id);
+
   static constexpr int kNumBuffers = 1;   ///< Number of buffers to allocate
   std::unique_ptr<BufferGroup> buffers_;  ///< Buffer group for buffers
   CameraPlatform& parent_;                ///< Parent camera object
   DeviceV4L2Ptr device_;                  ///< Camera device file descriptor
   bool started_;                          ///< True if started.
   std::thread camera_thread_;
+
+  std::mutex paramControlMutex_;
+  std::map<std::string, int> paramControlMap_;
 };
+
+void CameraPlatform::Impl::EnumerateControls()
+{
+  v4l2_queryctrl queryctrl;
+  memset(&queryctrl, 0, sizeof(queryctrl));
+  queryctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+
+  while (0 == device_->ioctl(VIDIOC_QUERYCTRL, &queryctrl))
+  {
+    std::string name = reinterpret_cast<const char*>(&queryctrl.name[0]);
+    // If it's not disabled...
+    if (!(queryctrl.flags & V4L2_CTRL_FLAG_DISABLED))
+    {
+      // Get the current value of the item
+      double value = 0;
+      v4l2_control control;
+      memset(&control, 0, sizeof(control));
+      control.id = queryctrl.id;
+      if (0 == device_->ioctl(VIDIOC_G_CTRL, &control))
+      {
+        value = static_cast<double>(control.value);
+      }
+      {  // Map the name to the control id
+        std::lock_guard<std::mutex> lock(paramControlMutex_);
+        ZBA_LOG("Adding {}:{:x}", name, queryctrl.id);
+        paramControlMap_.emplace(name, queryctrl.id);
+      }
+
+      // Create subscriber list
+      ParamSubscribers callbacks{
+          {name, std::bind(&CameraPlatform::Impl::OnParamChanged, this, std::placeholders::_1,
+                           std::placeholders::_2, std::placeholders::_3)}};
+
+      // If it's a menu item, create a menu parameter...
+      if (V4L2_CTRL_TYPE_MENU == queryctrl.type)
+      {
+        struct v4l2_querymenu querymenu;
+        memset(&querymenu, 0, sizeof(querymenu));
+        querymenu.id = queryctrl.id;
+
+        auto param = new ParamMenu(name, callbacks, value, queryctrl.default_value);
+
+        for (auto idx = queryctrl.minimum; idx <= queryctrl.maximum; idx++)
+        {
+          querymenu.index = static_cast<unsigned int>(idx);
+          if (0 == device_->ioctl(VIDIOC_QUERYMENU, &querymenu))
+          {
+            param->addValue(name, querymenu.index);
+          }
+        }
+        {
+          // Add to Camera's parameter list
+          std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
+          parent_.parameters_.emplace(name, std::shared_ptr<Param>(dynamic_cast<Param*>(param)));
+        }
+      }
+      else
+      {
+        // Not a menu - ranged.  For now, translate everything to doubles,
+        // but be sure to round when converting to value to send back.
+
+        /// {TODO} Would be nice to support auto on/off like winrt does.
+        /// Need to pair control ids somehow
+        bool autoMode = false;
+        auto param    = new ParamRanged<double, double>(
+            name, callbacks, value, queryctrl.default_value, queryctrl.minimum, queryctrl.maximum,
+            autoMode, RawToScaledNormal, ScaledToRawNormal);
+
+        {  // Add to Camera's parameter list
+          std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
+          parent_.parameters_.emplace(name, std::shared_ptr<Param>(dynamic_cast<Param*>(param)));
+        }
+      }
+    }
+    // Go to next one.
+    queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+  }
+  if (EINVAL != errno)
+  {
+    ZBA_THROW_ERRNO("Error querying device for controls!", Result::ZBA_CAMERA_ERROR);
+  }
+}
 
 CameraPlatform::CameraPlatform(const CameraInfo& info) : Camera(info)
 {
@@ -345,6 +438,7 @@ CameraPlatform::Impl::Impl(CameraPlatform* parent)
     return true;
   };
   EnumerateModes(saveFormat);
+  EnumerateControls();
 }
 
 void CameraPlatform::Impl::EnumerateModes(ModeCallback cb)
@@ -416,6 +510,74 @@ void CameraPlatform::Impl::EnumerateModes(ModeCallback cb)
       }
     }
   }
+}
+
+void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool /*auto_mode*/)
+{
+  auto name = param->name();
+  ZBA_LOG("Exposure {:x} Auto {:x}", V4L2_CID_EXPOSURE, V4L2_CID_EXPOSURE_AUTO);
+  // Find control id
+  int ctrl = 0;
+  {
+    std::lock_guard<std::mutex> lock(paramControlMutex_);
+    auto iter = paramControlMap_.find(name);
+    if (iter != paramControlMap_.end())
+    {
+      ctrl = iter->second;
+    }
+    else
+    {
+      ZBA_ERR("Didn't find matching control!");
+      return;
+    }
+  }
+  v4l2_control control;
+  memset(&control, 0, sizeof(control));
+  control.id = ctrl;
+
+  // Ranged controls
+  auto paramRanged = dynamic_cast<ParamRanged<double, double>*>(param);
+  if (paramRanged)
+  {
+    ZBA_LOG("Param {}:{:x}: changed ( RawSet: {} - Raw:{} Scaled:{})", name, ctrl, raw_set,
+            paramRanged->get(), paramRanged->getScaled());
+
+    if (!raw_set)
+    {
+      /// {TODO} Add auto_mode support here if possible later.
+      control.value = paramRanged->get();
+
+      if (0 != device_->ioctl(VIDIOC_S_CTRL, &control))
+      {
+        ZBA_ERRNO("Error setting ranged control value on {}:{:x} to {}!", name, ctrl,
+                  paramRanged->get());
+      }
+    }
+
+    return;
+  }
+
+  // Menu controls
+  auto paramMenu = dynamic_cast<ParamMenu*>(param);
+  if (paramMenu)
+  {
+    ZBA_LOG("Param {}:{:x}: changed ( index {} value {} desc {})", name, ctrl,
+            paramMenu->getIndex(), paramMenu->get(), paramMenu->to_string());
+
+    if (!raw_set)
+    {
+      control.value = paramMenu->get();
+
+      if (0 != device_->ioctl(VIDIOC_S_CTRL, &control))
+      {
+        ZBA_ERRNO("Error setting menu control value on {}:{:x} to {}!", name, ctrl,
+                  paramMenu->get());
+      }
+    }
+    return;
+  }
+
+  ZBA_LOG("Param {} changed. RawSet: {}", name, raw_set);
 }
 
 }  // namespace zebral

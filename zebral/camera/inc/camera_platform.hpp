@@ -4,10 +4,11 @@
 #define LIGHTBOX_CAMERA_CAMERA_PLATFORM_HPP_
 
 #include "camera.hpp"
-#include "camera_info.hpp"
 
 namespace zebral
 {
+struct CameraInfo;
+
 /// Linux Video4Linux2 camera implementation
 class CameraPlatform : public Camera
 {

@@ -190,8 +190,7 @@ TEST(CameraTests, CameraSanity)
 
     TimeStamp lastTimestamp = TimeStampNow();
     // Callback method - start it and let it pump the frames
-    auto frameCallback = [&](const CameraInfo&, const CameraFrame& image, TimeStamp timestamp)
-    {
+    auto frameCallback = [&](const CameraInfo&, const CameraFrame& image, TimeStamp timestamp) {
       ASSERT_TRUE(image.empty() == false);
       ASSERT_TRUE(timestamp > lastTimestamp);
       lastTimestamp = timestamp;
@@ -244,7 +243,7 @@ class ChangeWatch
  public:
   ChangeWatch() : deviceChanges(0), guiChanges(0) {}
 
-  void OnVolumeChangedGUI(Param* param, bool raw_set)
+  void OnVolumeChangedGUI(Param* param, bool raw_set, bool)
   {
     auto p = dynamic_cast<ParamRanged<int, double>*>(param);
     if (p && !raw_set)
@@ -254,7 +253,7 @@ class ChangeWatch
     }
   }
 
-  void OnVolumeChangedDevice(Param* param, bool raw_set)
+  void OnVolumeChangedDevice(Param* param, bool raw_set, bool)
   {
     auto p = dynamic_cast<ParamRanged<int, double>*>(param);
     if (p && (raw_set))
@@ -273,12 +272,12 @@ TEST(CameraTests, Params)
   ParamSubscribers callbacks;
   ChangeWatch watch;
   ParamCb guiCb    = std::bind(&ChangeWatch::OnVolumeChangedGUI, &watch, std::placeholders::_1,
-                               std::placeholders::_2);
+                            std::placeholders::_2, std::placeholders::_3);
   ParamCb deviceCb = std::bind(&ChangeWatch::OnVolumeChangedDevice, &watch, std::placeholders::_1,
-                               std::placeholders::_2);
+                               std::placeholders::_2, std::placeholders::_3);
   callbacks.insert({"Gui", guiCb});
   callbacks.insert({"Device", deviceCb});
-  ParamRanged<int, double> volume("Volume", callbacks, 25, 50, 0, 100, IntToUnit, UnitToInt);
+  ParamRanged<int, double> volume("Volume", callbacks, 25, 50, 0, 100, false, IntToUnit, UnitToInt);
 
   // Make sure it's registering the changes with callbacks and returning the right
   // values for clamping

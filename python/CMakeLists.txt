@@ -6,7 +6,13 @@ project(
 )
 
 find_package(pybind11 CONFIG)
-add_compile_options(-fsized-deallocation)
+
+# This fixes a problem compiling on GitHub with Clang
+# that I didn't see on Ubuntu 22.04
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-fsized-deallocation)
+endif()
+
 # pybind11 method:
 pybind11_add_module(${PROJECT_NAME} zebralpy.cpp)
 target_link_libraries(

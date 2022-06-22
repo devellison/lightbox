@@ -11,7 +11,6 @@
 
 namespace zebral
 {
-
 #if __linux__
 bool GetUSBInfo(const std::string& device_file, const std::string& driverType,
                 const std::string& deviceType, const std::string& devicePrefix, uint16_t& vid,
