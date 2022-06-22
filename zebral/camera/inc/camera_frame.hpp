@@ -146,6 +146,11 @@ class CameraFrame
     return data_.data();
   }
 
+  const uint8_t* const_data() const
+  {
+    return data_.data();
+  }
+
   /// Pointer to start of image data
   /// \return uint8_t* ptr to raw image data
   uint8_t* data()

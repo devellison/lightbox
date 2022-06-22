@@ -76,9 +76,9 @@ class Camera
   /// How do we want the buffers decoded?
   enum class DecodeType
   {
-    SYSTEM,
-    INTERNAL,
-    NONE
+    SYSTEM,    ///< Use system codecs
+    INTERNAL,  ///< Use internal decoding
+    NONE       ///< Provide raw encoded buffers
   };
 
   /// Sets the camera mode (should be done before calling Start()!)
