@@ -14,11 +14,15 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+if(MSVC)
+else()
+  set(CMAKE_CXX_FLAGS_DEBUG "-g")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+endif()
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_STANDARD 20)
 
 # Package info
@@ -79,6 +83,7 @@ endif()
 add_subdirectory(zebral)
 add_subdirectory(app)
 add_subdirectory(test)
+add_subdirectory(python)
 
 set(DOXYGEN_FILE_PATTERNS
     *.hpp

@@ -26,13 +26,26 @@ jobs:
         wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
         sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'     
         sudo apt update
-        sudo apt-get install cmake libopencv-dev graphviz doxygen clang-12
+        sudo apt-get install cmake libopencv-dev graphviz doxygen clang-12 pybind11-dev
+
     - name: Build fmtlib
       run: |
         git clone https://github.com/fmtlib/fmt.git externals/fmt
-        cmake -S externals/fmt -B externals/fmt/build
+        cmake -S externals/fmt -B externals/fmt/build -DCMAKE_POSITION_INDEPENDENT_CODE=1
         cmake --build externals/fmt/build --config Release
         sudo cmake --build externals/fmt/build --config Release -t install
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10.5'
+
+    - name: Install python deps
+      run: |
+        python -m pip install --upgrade pip
+        pip install pybind11
+        pip install opencv-python
+        pip install numpy
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.

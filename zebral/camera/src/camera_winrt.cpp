@@ -245,7 +245,7 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
   auto subType   = curFormat.Subtype();
   auto frameRate = curFormat.FrameRate();
   float fps      = std::round(100.0f * static_cast<float>(frameRate.Numerator()) /
-                              static_cast<float>(frameRate.Denominator())) /
+                         static_cast<float>(frameRate.Denominator())) /
               100.0f;
   return FormatInfo(w, h, fps, FilterSubtype(subType));
 }
@@ -399,7 +399,7 @@ void CameraPlatform::Impl::OnFrame(
         uint32_t dataLen = 0;
         auto interop     = ref.as<IMemoryBufferByteAccess>();
         check_hresult(interop->GetBuffer(&dataPtr, &dataLen));
-        CopyRawBuffer(dataPtr, src_stride);
+        parent_.CopyRawBuffer(dataPtr, src_stride);
       }
 
       ref.Close();
