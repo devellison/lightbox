@@ -6,7 +6,7 @@ project(
 )
 
 find_package(pybind11 CONFIG)
-
+add_compile_options(-fsized-deallocation)
 # pybind11 method:
 pybind11_add_module(${PROJECT_NAME} zebralpy.cpp)
 target_link_libraries(
@@ -14,9 +14,6 @@ target_link_libraries(
                           zebralcam::zebralcam
 )
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    target_compile_options(${PROJECT_NAME} INTERFACE -fsized-deallocation)
-endif()
 
 add_subdirectory(test)
 
