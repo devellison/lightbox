@@ -32,7 +32,7 @@ jobs:
       run: choco install opencv graphviz
 
     - name: Setup python path
-      run:  - run: echo " c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      run: echo " c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
