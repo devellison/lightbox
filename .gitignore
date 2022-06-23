@@ -7,3 +7,4 @@ CMakeSettings.json
 .vs
 winrt
 images
+cppclean.out

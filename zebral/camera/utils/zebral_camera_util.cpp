@@ -1,6 +1,8 @@
 #include <string>
+#include "camera_manager.hpp"
+#include "camera_platform.hpp"
 #include "log.hpp"
-#include "zebral_camera.hpp"
+#include "param.hpp"
 
 using namespace zebral;
 
@@ -42,6 +44,26 @@ void enumerate()
       std::cout << " (" << std::hex << curInfo.vid << ":" << std::hex << curInfo.pid << std::dec
                 << ")";
     }
+    std::cout << std::endl;
+  }
+}
+
+void dump_controls()
+{
+  CameraManager mgr;
+  auto infoList = mgr.Enumerate();
+  for (auto curInfo : infoList)
+  {
+    auto camera = mgr.Create(curInfo);
+    std::cout << curInfo.name << std::endl;
+
+    auto paramNames = camera->GetParameterNames();
+    for (const auto& curName : paramNames)
+    {
+      auto param = camera->GetParameter(curName);
+      std::cout << param << std::endl;
+    }
+
     std::cout << std::endl;
   }
 }
@@ -165,7 +187,8 @@ int main(int argc, char** argv)
 
   if (argc == 1)
   {
-    std::cout << "Usage: zebra_camera_util [enum|res|4ccs|supported|allmodes]" << std::endl;
+    std::cout << "Usage: zebra_camera_util [enum|res|4ccs|supported|allmodes|controls]"
+              << std::endl;
   }
   for (int i = 1; i < argc; ++i)
   {
@@ -192,6 +215,10 @@ int main(int argc, char** argv)
     else if (std::strcmp(argv[i], "test") == 0)
     {
       test();
+    }
+    else if (std::strcmp(argv[i], "controls") == 0)
+    {
+      dump_controls();
     }
   }
   return 0;

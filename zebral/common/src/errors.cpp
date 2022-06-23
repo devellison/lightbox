@@ -63,33 +63,31 @@ void SetUnhandled()
   SetUnhandledExceptionFilter(WinSehHandler);
 #endif
   // Handle c++ errors and exit
-  std::set_terminate(
-      []()
-      {
-        std::cerr << "A fatal error has occurred." << std::endl;
-        try
-        {
-          std::rethrow_exception(std::current_exception());
-        }
-        catch (const Error& e)
-        {
-          std::cerr << "Exception: " << e.what() << std::endl;
-          std::cerr << "Result: 0x" << std::hex << to_int(e.why()) << std::dec << std::endl;
-          std::cerr << "At: " << e.where() << std::endl;
-          // Exit with the Result code
-          std::exit(to_int(e.why()));
-        }
-        catch (const std::runtime_error& e)
-        {
-          std::cerr << "Runtime Error: " << e.what() << std::endl;
-        }
-        catch (const std::exception& e)
-        {
-          std::cerr << "Unhandled exception: " << e.what() << std::endl;
-        }
+  std::set_terminate([]() {
+    std::cerr << "A fatal error has occurred." << std::endl;
+    try
+    {
+      std::rethrow_exception(std::current_exception());
+    }
+    catch (const Error& e)
+    {
+      std::cerr << "Exception: " << e.what() << std::endl;
+      std::cerr << "Result: 0x" << std::hex << to_int(e.why()) << std::dec << std::endl;
+      std::cerr << "At: " << e.where() << std::endl;
+      // Exit with the Result code
+      std::exit(to_int(e.why()));
+    }
+    catch (const std::runtime_error& e)
+    {
+      std::cerr << "Runtime Error: " << e.what() << std::endl;
+    }
+    catch (const std::exception& e)
+    {
+      std::cerr << "Unhandled exception: " << e.what() << std::endl;
+    }
 
-        std::abort();
-      });
+    std::abort();
+  });
 }
 
 std::string SysErrorToString(int errorCode)

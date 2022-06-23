@@ -9,12 +9,23 @@
 #include "errors.hpp"
 #include "lightbox.hpp"
 #include "log.hpp"
+#include "param.hpp"
 #include "platform.hpp"
 
-// This should replace all of the above, mostly.
-#include "zebral_camera.hpp"
-
 using namespace zebral;
+
+// Params still needs cleanup.
+// Want to present everything we've got, but also
+// want a single simple interface for two platforms
+// that work differently.
+#if _WIN32
+#define CONFIGURED_PARAM_AUTO "Exposure"
+#define CONFIGURED_PARAM      "Exposure"
+#else
+#define CONFIGURED_PARAM_AUTO "Exposure, Auto"
+#define CONFIGURED_PARAM      "Exposure (Absolute)"
+#endif
+//#define CONFIGURED_PARAM "Focus"
 
 void printHelp()
 {
@@ -30,6 +41,7 @@ void saveImage(ZBA_TSTAMP time, const cv::Mat& img, const std::filesystem::path&
   if (!identifier.empty()) filename += "_" + identifier;
   filename += ".png";
   savepath /= filename;
+
   imwrite(savepath.string(), img);
 }
 
@@ -125,9 +137,11 @@ int main(int argc, char* argv[])
       std::cout << "     r - roi" << std::endl;
       std::cout << "     i - info" << std::endl;
       std::cout << "     s - save image" << std::endl;
-      std::cout << "     x - save split channels" << std::endl;
       std::cout << "     b - toggle buffering" << std::endl;
       std::cout << "     q - quit" << std::endl;
+      std::cout << "     x - toggle auto " CONFIGURED_PARAM << std::endl;
+      std::cout << "     - - reduce " CONFIGURED_PARAM << std::endl;
+      std::cout << "     = - increase " CONFIGURED_PARAM << std::endl;
       first = false;
     }
 
@@ -188,30 +202,65 @@ int main(int argc, char* argv[])
           cv::destroyWindow("ROI selector");
         }
         break;
+      case 'x':
+      {
+// Toggle auto here
+#if _WIN32
+        auto param    = camera->GetParameter(CONFIGURED_PARAM);
+        auto exposure = dynamic_cast<ParamRanged<double, double>*>(param.get());
+        if (exposure)
+        {
+          bool automode = exposure->getAuto() ^ true;
+          ZBA_LOG("Setting auto mode to {}", automode);
+          exposure->setAuto(automode);
+        }
+#else
+        auto param    = camera->GetParameter(CONFIGURED_PARAM_AUTO);
+        auto exposure = dynamic_cast<ParamMenu*>(param.get());
+        if (exposure)
+        {
+          static int automode = 1;
+          automode            = automode ^ 1;
+          ZBA_LOG("Setting auto mode to {}", automode);
+          exposure->setIndex(automode);
+        }
+#endif
+      }
+      break;
+      case '-':
+      {
+        auto param    = camera->GetParameter(CONFIGURED_PARAM);
+        auto exposure = dynamic_cast<ParamRanged<double, double>*>(param.get());
+        if (exposure)
+        {
+          exposure->setScaled(exposure->getScaled() - 0.05);
+        }
+      }
+      break;
+      case '=':
+      {
+        auto param    = camera->GetParameter(CONFIGURED_PARAM);
+        auto exposure = dynamic_cast<ParamRanged<double, double>*>(param.get());
+        if (exposure)
+        {
+          exposure->setScaled(exposure->getScaled() + 0.05);
+        }
+      }
+      break;
       case 's':
         // save
         if (!img.empty())
         {
-          saveImage(zba_now(), img(roi), imageDir);
+          if (!roi.empty())
+          {
+            saveImage(zba_now(), img(roi), imageDir);
+          }
+          else
+          {
+            saveImage(zba_now(), img, imageDir);
+          }
         }
         break;
-      case 'x':
-      {
-        // Split channels
-        std::vector<cv::Mat> array;
-        cv::split(img(roi), array);
-        auto curTime = zba_now();
-        saveImage(curTime, array[0], imageDir, "blue");
-        saveImage(curTime, array[1], imageDir, "green");
-        saveImage(curTime, array[2], imageDir, "red");
-        cv::equalizeHist(array[0], array[0]);
-        cv::equalizeHist(array[1], array[1]);
-        cv::equalizeHist(array[2], array[2]);
-        saveImage(curTime, array[0], imageDir, "blue_eq");
-        saveImage(curTime, array[1], imageDir, "green_eq");
-        saveImage(curTime, array[2], imageDir, "red_eq");
-      }
-      break;
       case 'b':
         // buffer the image 10x and accum to denoise
         buffering ^= true;

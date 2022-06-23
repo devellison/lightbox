@@ -3,6 +3,7 @@
 #include "convert.hpp"
 #include <cmath>
 #include <memory>
+#include "camera_frame.hpp"
 #include "log.hpp"
 
 namespace zebral

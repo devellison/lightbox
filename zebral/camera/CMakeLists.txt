@@ -34,6 +34,7 @@ set(SRC
     src/camera_info.cpp
     src/buffer_memmap.cpp
     src/convert.cpp
+    src/param.cpp
 )
 
 set(INC

@@ -5,12 +5,14 @@
 
 #include <cmath>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <mutex>
 #include <set>
 #include <string>
 #include <utility>
-#include "platform.hpp"
+#include "errors.hpp"
+#include "log.hpp"
 
 namespace zebral
 {
@@ -18,7 +20,8 @@ class Param;
 /// Callback function for parameter changes
 /// \param param - parameter that changed
 /// \param raw_set - true if the value changed from raw value being set.
-typedef std::function<void(Param* param, bool raw_set)> ParamCb;
+/// \param auto_mode - if true, the param is in (or should be placed in) auto mode if available.
+typedef std::function<void(Param* param, bool raw_set, bool auto_mode)> ParamCb;
 
 /// Named callbacks (for erasing/sorting/debugging)
 typedef std::pair<std::string, ParamCb> ParamChangedCb;
@@ -38,12 +41,13 @@ struct CompareSubscribers
 /// Set of parameter subscribers that receive notifications when the parameters are changed.
 typedef std::set<ParamChangedCb, CompareSubscribers> ParamSubscribers;
 
-/// OnParamChanged callback
-/// \param param - reference to parameter that changed
-/// \param raw_set - true if set via set() (device side).
-///                  false if set via setScaled() (user side).
+/// Default RawToScaled function - converts raw value to 0.0 - 1.0 value
+double RawToScaledNormal(double value, double minVal, double maxVal);
 
-/// Work in progress, just an idea right now
+/// Default ScaledToRaw function - converts scaled 0.0-1.0 value back to linear value between minVal
+/// and maxVal
+double ScaledToRawNormal(double value, double minVal, double maxVal);
+
 /// The desire is to have a generic parameter type that we can make a list of
 /// and pass around that optionally can take a range and convert between a "Device" value and
 /// a "GUI" value, without putting too much of a limit on what those can be
@@ -55,6 +59,8 @@ typedef std::set<ParamChangedCb, CompareSubscribers> ParamSubscribers;
 /// The locking may be overkill for the types we'll be using the most right now, since
 /// 32/64-bit values are atomic.  If we have performance issues there look at that.
 ///
+/// Also added an "automode", since the parameters I'm controlling currently can usually
+/// be switched between user controlled and automatically adjusted.
 class Param
 {
  public:
@@ -96,6 +102,12 @@ class Param
     return name_;
   }
 
+  std::ostream& dump(std::ostream& os) const
+  {
+    os << "Param (" << name_ << ")";
+    return os;
+  }
+
  protected:
   std::string name_;                        ///< Name of the parameter
   mutable std::recursive_mutex val_mutex_;  ///< value / subscriber lock
@@ -112,10 +124,12 @@ class ParamVal : public Param
   /// \param callbacks - callbacks to register
   /// \param value - value of parameter
   /// \param def - default value
-  ParamVal(const std::string& name, const ParamSubscribers& callbacks, RawType value, RawType def)
+  ParamVal(const std::string& name, const ParamSubscribers& callbacks, RawType value, RawType def,
+           bool auto_mode)
       : Param(name, callbacks),
         value_(value),
-        def_(def)
+        def_(def),
+        auto_mode_(auto_mode)
   {
   }
 
@@ -128,6 +142,11 @@ class ParamVal : public Param
   {
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
     return value_;
+  }
+
+  virtual std::string to_string() const
+  {
+    return std::to_string(get());
   }
 
   /// Sets the raw value
@@ -154,6 +173,27 @@ class ParamVal : public Param
     return def_;
   }
 
+  bool getAuto()
+  {
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    return auto_mode_;
+  }
+
+  void setAuto(bool auto_mode)
+  {
+    bool changed = false;
+    {
+      std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+      if (auto_mode != auto_mode_)
+      {
+        changed    = true;
+        auto_mode_ = auto_mode;
+      }
+    }
+    // For now, we assume sets are from scaled side.
+    if (changed) OnChanged(false);
+  }
+
   /// Called when a value is changed
   /// \param from_raw - true if changed by raw value being set (e.g. from set())
   void OnChanged(bool from_raw)
@@ -161,13 +201,20 @@ class ParamVal : public Param
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
     for (const auto& callback : subscribers_)
     {
-      callback.second(this, from_raw);
+      callback.second(this, from_raw, auto_mode_);
     }
+  }
+
+  std::ostream& dump(std::ostream& os) const
+  {
+    os << "     Value:" << value_ << " Def:" << def_ << " Auto:" << auto_mode_;
+    return os;
   }
 
  protected:
   RawType value_;  ///< Raw value of the parameter
   RawType def_;    ///< Default value of the parameter
+  bool auto_mode_;
 };
 
 /// Ranged Parameter that accepts functions to convert between raw and scaled (device and gui).
@@ -190,9 +237,10 @@ class ParamRanged : public ParamVal<RawType>
   /// \param minVal - minimum value
   /// \param maxVal - maximum value
   ParamRanged(const std::string& name, const ParamSubscribers& callbacks, RawType value,
-              RawType def, RawType minVal, RawType maxVal, RawToScaledFunc r2sfunc,
-              ScaledToRawFunc s2rfunc)
-      : ParamVal<RawType>(name, callbacks, value, def),
+              RawType def, RawType minVal, RawType maxVal, bool auto_mode,
+              RawToScaledFunc r2sfunc = RawToScaledNormal,
+              ScaledToRawFunc s2rfunc = ScaledToRawNormal)
+      : ParamVal<RawType>(name, callbacks, value, def, auto_mode),
         minVal_(minVal),
         maxVal_(maxVal),
         ToScaled_(r2sfunc),
@@ -243,6 +291,12 @@ class ParamRanged : public ParamVal<RawType>
     return clamped;
   }
 
+  std::ostream& dump(std::ostream& os) const
+  {
+    os << "     Min:" << minVal_ << " Max:" << maxVal_ << " Scaled:" << getScaled();
+    return os;
+  }
+
  protected:
   RawType minVal_;  ///< Minimum raw value for the param
   RawType maxVal_;  ///< Maximum raw value for the param
@@ -250,6 +304,120 @@ class ParamRanged : public ParamVal<RawType>
   RawToScaledFunc ToScaled_;  ///< Function to convert a raw value to scaled (device to gui)
   ScaledToRawFunc ToRaw_;     ///< Function to convert a scaled value to a raw (gui to device)
 };
+
+/// Menu parameter that allows selection between a set of values.
+class ParamMenu : public ParamVal<int>
+{
+ public:
+  /// Param constructor
+  /// \param name - name of parameter
+  /// \param callbacks - callbacks to register
+  /// \param value - value of parameter
+  /// \param def - default value
+  /// \param minVal - minimum value
+  /// \param maxVal - maximum value
+  ParamMenu(const std::string& name, const ParamSubscribers& callbacks, int value, int def)
+      : ParamVal<int>(name, callbacks, value, def, false)
+  {
+  }
+
+  /// dtor
+  virtual ~ParamMenu() {}
+
+  /// Override of ParamVal's set() to add clamping
+  /// \param raw - value to set
+  /// \returns bool - true if clamped, false if in range.
+  bool set(int raw) override
+  {
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    for (size_t i = 0; i < menu_descs_.size(); ++i)
+    {
+      if (raw == menu_values_[i])
+      {
+        ParamVal<int>::set(raw);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  std::string to_string() const override
+  {
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    int i = getIndex();
+    if (i >= 0)
+    {
+      return menu_descs_[i];
+    }
+    return "INVALID";
+  }
+
+  void addValue(const std::string& desc, int value)
+  {
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    menu_descs_.emplace_back(desc);
+    menu_values_.emplace_back(value);
+  }
+
+  /// Retrieves the scaled value
+  /// \returns ScaledType - scaled value
+  int getIndex() const
+  {
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    for (int i = 0; i < static_cast<int>(menu_descs_.size()); ++i)
+    {
+      if (value_ == menu_values_[i])
+      {
+        return i;
+      }
+    }
+    ZBA_ERR("Invalid menu item, can't find index for {}:{}!", name_, value_);
+    return -1;
+  }
+
+  /// Sets the value from a scaled value.
+  /// /param scaled - scaled value
+  /// \returns true - if true, the value was in range. If false, it was out of range and clamped.
+  bool setIndex(int idx)
+  {
+    bool changed = false;
+    bool err     = false;
+    {
+      std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+      if ((idx >= 0) && (idx < static_cast<int>(menu_descs_.size())))
+      {
+        changed               = true;
+        ParamVal<int>::value_ = menu_values_[idx];
+      }
+      else
+      {
+        ZBA_ERR("Invalid menu index for {}({})", name_, idx);
+        err = true;
+      }
+    }
+    if (changed) ParamVal<int>::OnChanged(false);
+    return err;
+  }
+
+  std::ostream& dump(std::ostream& os) const
+  {
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    for (size_t i = 0; i < menu_descs_.size(); ++i)
+    {
+      if (i != 0) os << std::endl;
+
+      os << "     Item " << i << ": " << menu_descs_[i] << " (" << std::hex
+         << static_cast<unsigned int>(menu_values_[i]) << ")" << std::dec;
+    }
+    return os;
+  }
+
+ protected:
+  std::vector<std::string> menu_descs_;
+  std::vector<int> menu_values_;
+};
+
+std::ostream& operator<<(std::ostream& os, const std::shared_ptr<Param>& param);
 
 }  // namespace zebral
 

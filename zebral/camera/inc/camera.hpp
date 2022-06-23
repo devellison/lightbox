@@ -6,14 +6,18 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <thread>
+
 #include "camera_frame.hpp"
 #include "camera_info.hpp"
 
 namespace zebral
 {
+class Param;
+
 /// TimeStamp used by camera calls (high_resolution_clock)
 using TimeStamp = std::chrono::high_resolution_clock::time_point;
 
@@ -97,6 +101,9 @@ class Camera
   ///          contains current format.
   virtual std::optional<FormatInfo> GetFormat();
 
+  virtual std::vector<std::string> GetParameterNames();
+  virtual std::shared_ptr<Param> GetParameter(const std::string& name);
+
  protected:
   /// Checks if we will support a format.
   /// Debating about doing our own codecs or allowing raw passthrough on these,
@@ -148,6 +155,8 @@ class Camera
   std::condition_variable cv_;                ///< Condition var for frame notification
   DecodeType decode_;                         ///< Specifies if/how buffers are decoded
   std::vector<FormatInfo> all_modes_;         ///< All modes available, even those we don't support
+  std::mutex parameter_mutex_;                ///< Protect parameters
+  std::map<std::string, std::shared_ptr<Param>> parameters_;
 };
 
 /// Convenience operator for dumping CameraInfos for debugging

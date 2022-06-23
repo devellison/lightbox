@@ -4,9 +4,11 @@
 #define LIGHTBOX_CAMERA_CONVERT_HPP_
 
 #include <algorithm>
-#include "camera_frame.hpp"
+
 namespace zebral
 {
+class CameraFrame;
+
 #pragma pack(push, 1)
 struct fmt_YUY2
 {

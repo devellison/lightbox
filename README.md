@@ -5,26 +5,21 @@ More details TBA.
 [You can see what I'm likely working on here](https://github.com/users/devellison/projects/1).
 
 It doesn't do much yet - base firmware in `./firmware` and the start of the camera
-library in `./zebral/camera` are all that's there.
+library in `./zebral/camera` are the most developed.
 
 Firmware responds to serial line commands or a button. "help" for help.
-Camera can capture frames via WinRT on Windows, but it's still using OpenCV
-on Linux (to be replaced - most like w/V4L2 but TBD).
+Camera can enumerate devices and modes and capture and decode basic frames.
 
 Currently developing it with:
 - C++20, Clang-12, MSVC 2019 (2022 for CI)
-- Windows 11 / C++/WinRT and Ubuntu 20.04 / V4L2
+- 64-bit Windows 11 / C++/WinRT and Ubuntu 22.04 (20.04 for CI)/ V4L2
 - [Adafruit Feather RP2040](https://learn.adafruit.com/adafruit-feather-rp2040-pico/circuitpython)
 - [Wiki has more hardware details](https://github.com/devellison/lightbox/wiki)
-
-The Zebral Camera Library is being developed while working on the lightbox,
-and can be built as part of the lightbox project or separately - look in
-./zebral/camera, or in the ./lib and ./include directories of an install package.
 
 - Install dependencies:
   - As it's actively being developed, might check the [workflows](https://github.com/devellison/lightbox/tree/main/.github/workflows) for latest requirements for building.
   - Windows:
-    - Visual Studio 2019 (CMake 3.20)  (Others may work - 2022 in CI)
+    - Visual Studio 2019 (CMake 3.20+)  (Others may work - 2022 in CI)
     - Set up OpenCV 4.5.5, including videoio, highgui, and core 
       (current binary release didn't seem to have these, but choco did)
     - Doxygen, graphviz, cmake-format (pip install), clang-format
@@ -32,26 +27,20 @@ and can be built as part of the lightbox project or separately - look in
     - Currently using Clang-12 (CMake 3.23)
     - Using OpenCV 4.2 from Ubuntu's distribution
     - libfmt (on Linux) should be built and installed
-    - Google test is downloaded by the cmake currently
+    - Google test is downloaded by CMake currently
   - Build tools and deps for both:    
     - CMake v3.20+ (you can get it from kitware for ubuntu)
     - OpenMP (optional, not using it much yet)
     - Doxygen, graphviz, cpack, cmake-format (pip install), clang-format
+    - Python 3.10.5+ and PyBind11 for python bindings
+    - Numpy and OpenCV-python (pip installs) are required for the python tests
 - Set up hardware (Web Camera, Feather RP2040, many many LEDs, relay boards, TBD)
-    - See the Wiki, will doc wiring/etc. over time.
+    - See the Wiki, will doc wiring/etc. as it gets more solidified.
 - Install CircuitPython to Adafruit Feather RP2040
 - Copy `code.py` and `lightbar.py` from the `firmware` directory to Adafruit Feather RP2040's root directory
-- Configure and compile app (GUI mode, as esp. in Windows you may need to help it find OpenCV build directory)
-  - Windows:
-    - Configure: `cmake-gui -S . -B build`
-    - Compile:   `cmake --build build --config Release`
-    - Test:      `cmake --build build --config Release -t RUN_TESTS`
-    - Package:   `cmake --build build --config Release -t package`
-  - Linux: 
-    - Configure: `cmake-gui -S . -B build`
-    - Compile:   `cmake --build build --config Release`
-    - Test:      `cmake --build build --config Release -t test`
-    - Package:   `cd build; cpack`
+- Configure and compile app using normal CMake commands, or just run the scripts from the base directory.
+  - `build_win.bat` for Windows
+  - `./build_linux.sh` for Linux
 - Run it!
   - Windows: `build\app\Release\lightbox_app.exe`
   - Linux: `build/app/lightbox_app`

@@ -15,6 +15,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(MSVC)
+
 else()
   set(CMAKE_CXX_FLAGS_DEBUG "-g")
   set(CMAKE_CXX_FLAGS_RELEASE "-O3")
