@@ -277,7 +277,8 @@ TEST(CameraTests, Params)
                                std::placeholders::_2, std::placeholders::_3);
   callbacks.insert({"Gui", guiCb});
   callbacks.insert({"Device", deviceCb});
-  ParamRanged<int, double> volume("Volume", callbacks, 25, 50, 0, 100, false, IntToUnit, UnitToInt);
+  ParamRanged<int, double> volume("Volume", callbacks, 25, 50, 0, 100, 1, false, false, IntToUnit,
+                                  UnitToInt);
 
   // Make sure it's registering the changes with callbacks and returning the right
   // values for clamping

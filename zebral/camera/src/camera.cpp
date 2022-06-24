@@ -237,7 +237,7 @@ std::ostream& operator<<(std::ostream& os, const CameraFrame& camFrame)
      << " " << camFrame.bytes_per_channel() << std::endl;
   return os;
 }
-std::vector<std::string> Camera::GetParameterNames()
+std::vector<std::string> Camera::GetParameterNames() const
 {
   std::vector<std::string> names;
   std::lock_guard<std::mutex> lock(parameter_mutex_);
@@ -247,6 +247,13 @@ std::vector<std::string> Camera::GetParameterNames()
   }
   return names;
 }
+
+int Camera::GetParameterCount() const
+{
+  std::lock_guard<std::mutex> lock(parameter_mutex_);
+  return static_cast<int>(parameters_.size());
+}
+
 std::shared_ptr<Param> Camera::GetParameter(const std::string& name)
 {
   std::lock_guard<std::mutex> lock(parameter_mutex_);

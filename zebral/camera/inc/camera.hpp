@@ -101,8 +101,9 @@ class Camera
   ///          contains current format.
   virtual std::optional<FormatInfo> GetFormat();
 
-  virtual std::vector<std::string> GetParameterNames();
+  virtual std::vector<std::string> GetParameterNames() const;
   virtual std::shared_ptr<Param> GetParameter(const std::string& name);
+  virtual int GetParameterCount() const;
 
  protected:
   /// Checks if we will support a format.
@@ -155,7 +156,9 @@ class Camera
   std::condition_variable cv_;                ///< Condition var for frame notification
   DecodeType decode_;                         ///< Specifies if/how buffers are decoded
   std::vector<FormatInfo> all_modes_;         ///< All modes available, even those we don't support
-  std::mutex parameter_mutex_;                ///< Protect parameters
+  mutable std::mutex parameter_mutex_;        ///< Protect parameters
+
+  /// map of adjustable parameters by name
   std::map<std::string, std::shared_ptr<Param>> parameters_;
 };
 
