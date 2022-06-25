@@ -78,7 +78,7 @@ class CameraPlatform::Impl
   static bool VidPidFromBusPath(const std::string& busPath, uint16_t& vid, uint16_t& pid);
 
   void OnParamChanged(Param* param, bool raw_set, bool auto_mode);
-  void AddParameter(const std::string& name, MediaDeviceControl ctrl);
+  void AddParameter(const std::string& name, MediaDeviceControl ctrl, bool supportsAuto);
 
   CameraPlatform& parent_;                       ///< CameraPlatform that owns this Impl
   MediaCapture mc_;                              ///< MediaCapture base object
@@ -276,7 +276,7 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
 {
   auto frameRate = curFormat.FrameRate();
   float fps      = std::round(100.0f * static_cast<float>(frameRate.Numerator()) /
-                         static_cast<float>(frameRate.Denominator())) /
+                              static_cast<float>(frameRate.Denominator())) /
               100.0f;
 
   return FormatInfo(curFormat.VideoFormat().Width(), curFormat.VideoFormat().Height(), fps,
@@ -348,20 +348,24 @@ CameraPlatform::Impl::Impl(CameraPlatform* parent)
     }
   }
 
-  // Can we see the properties at this point?
+  // Get the device controller for parameters
   videoDevCtrl_ = mc_.VideoDeviceController();
-  AddParameter("Exposure", videoDevCtrl_.Exposure());
-  AddParameter("Focus", videoDevCtrl_.Focus());
-  AddParameter("Brightness", videoDevCtrl_.Brightness());
-  AddParameter("Contrast", videoDevCtrl_.Contrast());
-  AddParameter("WhiteBalance", videoDevCtrl_.WhiteBalance());
-  AddParameter("Hue", videoDevCtrl_.Hue());
-  AddParameter("Pan", videoDevCtrl_.Pan());
-  AddParameter("Roll", videoDevCtrl_.Roll());
-  AddParameter("Tilt", videoDevCtrl_.Tilt());
+
+  // These support auto
+  AddParameter("Exposure", videoDevCtrl_.Exposure(), true);
+  AddParameter("Focus", videoDevCtrl_.Focus(), true);
+  AddParameter("Brightness", videoDevCtrl_.Brightness(), true);
+  AddParameter("WhiteBalance", videoDevCtrl_.WhiteBalance(), true);
+
+  // These don't, setting auto sets to default
+  AddParameter("Contrast", videoDevCtrl_.Contrast(), false);
+  AddParameter("Pan", videoDevCtrl_.Pan(), false);
+  AddParameter("Tilt", videoDevCtrl_.Tilt(), false);
+  AddParameter("Zoom", videoDevCtrl_.Zoom(), false);
 }
 
-void CameraPlatform::Impl::AddParameter(const std::string& name, MediaDeviceControl ctrl)
+void CameraPlatform::Impl::AddParameter(const std::string& name, MediaDeviceControl ctrl,
+                                        bool autoSupport)
 {
   if (ctrl)
   {
@@ -379,9 +383,9 @@ void CameraPlatform::Impl::AddParameter(const std::string& name, MediaDeviceCont
       ParamSubscribers callbacks{
           {name, std::bind(&CameraPlatform::Impl::OnParamChanged, this, std::placeholders::_1,
                            std::placeholders::_2, std::placeholders::_3)}};
-      auto param = new ParamRanged<double, double>(name, callbacks, value, caps.Default(),
-                                                   caps.Min(), caps.Max(), automode,
-                                                   RawToScaledNormal, ScaledToRawNormal);
+      auto param = new ParamRanged<double, double>(
+          name, callbacks, value, caps.Default(), caps.Min(), caps.Max(), caps.Step(), automode,
+          autoSupport, RawToScaledNormal, ScaledToRawNormal);
 
       std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
       parent_.parameters_.emplace(name, std::shared_ptr<Param>(dynamic_cast<Param*>(param)));
@@ -480,6 +484,8 @@ void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool auto_
 {
   auto name        = param->name();
   auto paramRanged = dynamic_cast<ParamRanged<double, double>*>(param);
+
+  // Ranged controls
   if (paramRanged)
   {
     MediaDeviceControl ctrl(nullptr);
@@ -500,13 +506,34 @@ void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool auto_
     ZBA_LOG("Param {} changed ( RawSet: {} - Raw:{} Scaled:{})", name, raw_set, paramRanged->get(),
             paramRanged->getScaled());
 
+    // If Raw isn't set, is from host - set the hardware
     if ((!raw_set) && ctrl)
     {
       bool in_auto = false;
-      ctrl.TryGetAuto(in_auto);
-      if (auto_mode != in_auto)
+
+      if (paramRanged->autoSupported())
       {
-        ctrl.TrySetAuto(auto_mode);
+        ctrl.TryGetAuto(in_auto);
+        if (auto_mode != in_auto)
+        {
+          if (auto_mode)
+          {
+            // Set to default when switching to auto mode, in case
+            // auto mode is unsupported by hardware.
+            ctrl.TrySetValue(paramRanged->default_value());
+          }
+          ctrl.TrySetAuto(auto_mode);
+        }
+      }
+      else if (auto_mode)
+      {
+        // Maybe set to default here? Auto requested but not supported
+        ZBA_LOG("Auto change requested but control doesn't support. Setting to default.");
+        auto_mode = false;
+        paramRanged->setAuto(false, false);
+        paramRanged->set(paramRanged->default_value());
+        ctrl.TrySetValue(paramRanged->get());
+        return;
       }
 
       if (!auto_mode)
@@ -519,9 +546,11 @@ void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool auto_
         ctrl.TryGetValue(value);
         if (std::abs(value - paramRanged->get()) > std::numeric_limits<double>::epsilon())
         {
-          // If it's in auto, and we're setting it from the GUI, reset it from the hardware.
+          // If it's in auto, and we're trying to set it from the GUI,
+          // just update it from the hardware.
           paramRanged->set(value);
-          ZBA_LOG("Auto mode. Value: {} Scaled: {}", paramRanged->get(), paramRanged->getScaled());
+          ZBA_LOG("Auto mode. Queried: Value: {} Scaled: {}", paramRanged->get(),
+                  paramRanged->getScaled());
         }
       }
     }

@@ -72,7 +72,7 @@ class Param
         subscribers_(callbacks.begin(), callbacks.end())
   {
   }
-
+  // dtor
   virtual ~Param() {}
 
   /// Subscribe to notifications when the parameter changes
@@ -102,6 +102,7 @@ class Param
     return name_;
   }
 
+  /// Dumps the parameter name to an ostream
   std::ostream& dump(std::ostream& os) const
   {
     os << "Param (" << name_ << ")";
@@ -125,11 +126,12 @@ class ParamVal : public Param
   /// \param value - value of parameter
   /// \param def - default value
   ParamVal(const std::string& name, const ParamSubscribers& callbacks, RawType value, RawType def,
-           bool auto_mode)
+           bool auto_mode, bool auto_supported)
       : Param(name, callbacks),
         value_(value),
         def_(def),
-        auto_mode_(auto_mode)
+        auto_mode_(auto_mode),
+        auto_supported_(auto_supported)
   {
   }
 
@@ -144,6 +146,7 @@ class ParamVal : public Param
     return value_;
   }
 
+  /// Converts the value to a string
   virtual std::string to_string() const
   {
     return std::to_string(get());
@@ -172,14 +175,21 @@ class ParamVal : public Param
   {
     return def_;
   }
+  /// Returns true if we can support auto switching
+  bool autoSupported() const
+  {
+    return auto_supported_;
+  }
 
-  bool getAuto()
+  // Gets the auto mode
+  bool getAuto() const
   {
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
     return auto_mode_;
   }
 
-  void setAuto(bool auto_mode)
+  /// Sets the auto mode
+  void setAuto(bool auto_mode, bool fire_event = true)
   {
     bool changed = false;
     {
@@ -191,7 +201,10 @@ class ParamVal : public Param
       }
     }
     // For now, we assume sets are from scaled side.
-    if (changed) OnChanged(false);
+    if (fire_event)
+    {
+      if (changed) OnChanged(false);
+    }
   }
 
   /// Called when a value is changed
@@ -205,16 +218,19 @@ class ParamVal : public Param
     }
   }
 
+  /// Dumps the unique part of ParamVal to an ostream
   std::ostream& dump(std::ostream& os) const
   {
-    os << "     Value:" << value_ << " Def:" << def_ << " Auto:" << auto_mode_;
+    os << "     Value:" << value_ << " Def:" << def_ << " Auto Support: " << auto_supported_
+       << " Auto:" << auto_mode_;
     return os;
   }
 
  protected:
-  RawType value_;  ///< Raw value of the parameter
-  RawType def_;    ///< Default value of the parameter
-  bool auto_mode_;
+  RawType value_;        ///< Raw value of the parameter
+  RawType def_;          ///< Default value of the parameter
+  bool auto_mode_;       ///< Is the param in automatic mode (handled by hardware/driver)?
+  bool auto_supported_;  ///< Does the control have an auto setting
 };
 
 /// Ranged Parameter that accepts functions to convert between raw and scaled (device and gui).
@@ -236,13 +252,19 @@ class ParamRanged : public ParamVal<RawType>
   /// \param def - default value
   /// \param minVal - minimum value
   /// \param maxVal - maximum value
+  /// \param step - step size to see a change
+  /// \param auto_mode - is it in auto mode?
+  /// \param r2sfunc - rawToScaled function, defaults to normalized linear 0-1
+  /// \param s2rfunc - ScaledToRaw function, defaults to inverse of normalized linear 0-1
   ParamRanged(const std::string& name, const ParamSubscribers& callbacks, RawType value,
-              RawType def, RawType minVal, RawType maxVal, bool auto_mode,
-              RawToScaledFunc r2sfunc = RawToScaledNormal,
+              RawType def, RawType minVal, RawType maxVal, RawType step, bool auto_mode,
+              bool autoSupport, RawToScaledFunc r2sfunc = RawToScaledNormal,
               ScaledToRawFunc s2rfunc = ScaledToRawNormal)
-      : ParamVal<RawType>(name, callbacks, value, def, auto_mode),
+      : ParamVal<RawType>(name, callbacks, value, def, auto_mode, autoSupport),
         minVal_(minVal),
         maxVal_(maxVal),
+        stepVal_(step),
+        stepScaled_(step / (maxVal - minVal)),
         ToScaled_(r2sfunc),
         ToRaw_(s2rfunc)
   {
@@ -273,6 +295,12 @@ class ParamRanged : public ParamVal<RawType>
     return ToScaled_(ParamVal<RawType>::value_, minVal_, maxVal_);
   }
 
+  /// Retrieve the size of step in scaled values
+  ScaledType getScaledStep() const
+  {
+    return stepScaled_;
+  }
+
   /// Sets the value from a scaled value.
   /// /param scaled - scaled value
   /// \returns true - if true, the value was in range. If false, it was out of range and clamped.
@@ -291,6 +319,7 @@ class ParamRanged : public ParamVal<RawType>
     return clamped;
   }
 
+  /// Dumps the unique part of ParamRanged to an ostream
   std::ostream& dump(std::ostream& os) const
   {
     os << "     Min:" << minVal_ << " Max:" << maxVal_ << " Scaled:" << getScaled();
@@ -298,8 +327,10 @@ class ParamRanged : public ParamVal<RawType>
   }
 
  protected:
-  RawType minVal_;  ///< Minimum raw value for the param
-  RawType maxVal_;  ///< Maximum raw value for the param
+  RawType minVal_;         ///< Minimum raw value for the param
+  RawType maxVal_;         ///< Maximum raw value for the param
+  RawType stepVal_;        ///< Size of step (raw)
+  ScaledType stepScaled_;  ///< Size of step (scaled)
 
   RawToScaledFunc ToScaled_;  ///< Function to convert a raw value to scaled (device to gui)
   ScaledToRawFunc ToRaw_;     ///< Function to convert a scaled value to a raw (gui to device)
@@ -317,7 +348,7 @@ class ParamMenu : public ParamVal<int>
   /// \param minVal - minimum value
   /// \param maxVal - maximum value
   ParamMenu(const std::string& name, const ParamSubscribers& callbacks, int value, int def)
-      : ParamVal<int>(name, callbacks, value, def, false)
+      : ParamVal<int>(name, callbacks, value, def, false, false)
   {
   }
 
@@ -341,6 +372,7 @@ class ParamMenu : public ParamVal<int>
     return true;
   }
 
+  /// Convert the current value to a string
   std::string to_string() const override
   {
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
@@ -352,6 +384,7 @@ class ParamMenu : public ParamVal<int>
     return "INVALID";
   }
 
+  /// Add a new value to the menu
   void addValue(const std::string& desc, int value)
   {
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
@@ -373,6 +406,13 @@ class ParamMenu : public ParamVal<int>
     }
     ZBA_ERR("Invalid menu item, can't find index for {}:{}!", name_, value_);
     return -1;
+  }
+
+  /// Retrieve the number of menu items
+  int getCount() const
+  {
+    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
+    return static_cast<int>(menu_descs_.size());
   }
 
   /// Sets the value from a scaled value.
@@ -399,6 +439,7 @@ class ParamMenu : public ParamVal<int>
     return err;
   }
 
+  /// Dumps the unique part of ParamMenu to an ostream
   std::ostream& dump(std::ostream& os) const
   {
     std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
@@ -413,10 +454,11 @@ class ParamMenu : public ParamVal<int>
   }
 
  protected:
-  std::vector<std::string> menu_descs_;
-  std::vector<int> menu_values_;
+  std::vector<std::string> menu_descs_;  ///< list of menu descriptions
+  std::vector<int> menu_values_;         ///< matching list of menu values
 };
 
+/// Dumps a shared_ptr<Param> to an ostream. Works for inherited param types.
 std::ostream& operator<<(std::ostream& os, const std::shared_ptr<Param>& param);
 
 }  // namespace zebral

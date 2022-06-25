@@ -14,19 +14,6 @@
 
 using namespace zebral;
 
-// Params still needs cleanup.
-// Want to present everything we've got, but also
-// want a single simple interface for two platforms
-// that work differently.
-#if _WIN32
-#define CONFIGURED_PARAM_AUTO "Exposure"
-#define CONFIGURED_PARAM      "Exposure"
-#else
-#define CONFIGURED_PARAM_AUTO "Exposure, Auto"
-#define CONFIGURED_PARAM      "Exposure (Absolute)"
-#endif
-//#define CONFIGURED_PARAM "Focus"
-
 void printHelp()
 {
   std::cout << "lightbox v" << LIGHTBOX_VERSION << " by Michael Ellison " << std::endl;
@@ -127,7 +114,8 @@ int main(int argc, char* argv[])
   auto mode = *modeMaybe;
   cv::Rect roi(0, 0, 0, 0);
 
-  bool first = true;
+  bool first    = true;
+  int param_idx = 0;
 
   do
   {
@@ -139,9 +127,12 @@ int main(int argc, char* argv[])
       std::cout << "     s - save image" << std::endl;
       std::cout << "     b - toggle buffering" << std::endl;
       std::cout << "     q - quit" << std::endl;
-      std::cout << "     x - toggle auto " CONFIGURED_PARAM << std::endl;
-      std::cout << "     - - reduce " CONFIGURED_PARAM << std::endl;
-      std::cout << "     = - increase " CONFIGURED_PARAM << std::endl;
+      std::cout << "     x - select next param " << std::endl;
+      std::cout << "     y - toggle auto on a param" << std::endl;
+      std::cout << "     - - reduce param" << std::endl;
+      std::cout << "     = - increase param" << std::endl;
+      std::cout << "     [ - min param" << std::endl;
+      std::cout << "     ] - max param" << std::endl;
       first = false;
     }
 
@@ -204,46 +195,112 @@ int main(int argc, char* argv[])
         break;
       case 'x':
       {
-// Toggle auto here
-#if _WIN32
-        auto param    = camera->GetParameter(CONFIGURED_PARAM);
-        auto exposure = dynamic_cast<ParamRanged<double, double>*>(param.get());
-        if (exposure)
+        auto names = camera->GetParameterNames();
+        if (names.empty()) break;
+        param_idx = (param_idx + 1) % (names.size());
+        ZBA_LOG("Selected parameter {} ({})", names[param_idx], param_idx);
+      }
+      break;
+      case 'y':
+      {
+        auto names = camera->GetParameterNames();
+        if (names.empty()) break;
+        auto param = camera->GetParameter(names[param_idx]);
+
+        auto paramVal = dynamic_cast<ParamVal<double>*>(param.get());
+        if (paramVal)
         {
-          bool automode = exposure->getAuto() ^ true;
-          ZBA_LOG("Setting auto mode to {}", automode);
-          exposure->setAuto(automode);
+          bool isAuto = paramVal->getAuto() ^ true;
+          ZBA_LOG("Setting Auto {} to {}", names[param_idx], isAuto);
+          paramVal->setAuto(isAuto);
+          break;
         }
-#else
-        auto param    = camera->GetParameter(CONFIGURED_PARAM_AUTO);
-        auto exposure = dynamic_cast<ParamMenu*>(param.get());
-        if (exposure)
-        {
-          static int automode = 1;
-          automode            = automode ^ 1;
-          ZBA_LOG("Setting auto mode to {}", automode);
-          exposure->setIndex(automode);
-        }
-#endif
       }
       break;
       case '-':
       {
-        auto param    = camera->GetParameter(CONFIGURED_PARAM);
-        auto exposure = dynamic_cast<ParamRanged<double, double>*>(param.get());
-        if (exposure)
+        auto names = camera->GetParameterNames();
+        if (names.empty()) break;
+        auto param = camera->GetParameter(names[param_idx]);
+
+        auto ranged = dynamic_cast<ParamRanged<double, double>*>(param.get());
+        if (ranged)
         {
-          exposure->setScaled(exposure->getScaled() - 0.05);
+          ranged->setScaled(ranged->getScaled() - ranged->getScaledStep());
+          break;
+        }
+
+        auto menu = dynamic_cast<ParamMenu*>(param.get());
+        if (menu)
+        {
+          auto index = menu->getIndex();
+          if (index > 0)
+          {
+            index--;
+          }
+          menu->setIndex(index);
         }
       }
       break;
       case '=':
       {
-        auto param    = camera->GetParameter(CONFIGURED_PARAM);
-        auto exposure = dynamic_cast<ParamRanged<double, double>*>(param.get());
-        if (exposure)
+        auto names = camera->GetParameterNames();
+        if (names.empty()) break;
+        auto param = camera->GetParameter(names[param_idx]);
+
+        auto ranged = dynamic_cast<ParamRanged<double, double>*>(param.get());
+        if (ranged)
         {
-          exposure->setScaled(exposure->getScaled() + 0.05);
+          ranged->setScaled(ranged->getScaled() + ranged->getScaledStep());
+          break;
+        }
+
+        auto menu = dynamic_cast<ParamMenu*>(param.get());
+        if (menu)
+        {
+          auto index = menu->getIndex();
+          index      = (index + 1) % menu->getCount();
+          menu->setIndex(index);
+        }
+      }
+      break;
+      case '[':
+      {
+        auto names = camera->GetParameterNames();
+        if (names.empty()) break;
+        auto param = camera->GetParameter(names[param_idx]);
+
+        auto ranged = dynamic_cast<ParamRanged<double, double>*>(param.get());
+        if (ranged)
+        {
+          ranged->setScaled(0);
+          break;
+        }
+
+        auto menu = dynamic_cast<ParamMenu*>(param.get());
+        if (menu)
+        {
+          menu->setIndex(0);
+        }
+      }
+      break;
+      case ']':
+      {
+        auto names = camera->GetParameterNames();
+        if (names.empty()) break;
+        auto param = camera->GetParameter(names[param_idx]);
+
+        auto ranged = dynamic_cast<ParamRanged<double, double>*>(param.get());
+        if (ranged)
+        {
+          ranged->setScaled(1);
+          break;
+        }
+
+        auto menu = dynamic_cast<ParamMenu*>(param.get());
+        if (menu)
+        {
+          menu->setIndex(menu->getCount() - 1);
         }
       }
       break;

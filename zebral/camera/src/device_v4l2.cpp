@@ -85,6 +85,20 @@ int DeviceV4L2::select(float timeout)
   return ::select(handle_ + 1, &fds, NULL, NULL, &tv);
 }
 
+/// Starts video capture stream on device
+int DeviceV4L2::start_video_stream()
+{
+  unsigned int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  return ioctl(VIDIOC_STREAMON, &type);
+}
+
+/// Stops video stream on device
+int DeviceV4L2::stop_video_stream()
+{
+  unsigned int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  return ioctl(VIDIOC_STREAMOFF, &type);
+}
+
 }  // namespace zebral
 
 #endif  //__linux__

@@ -50,6 +50,9 @@ class CameraPlatform::Impl
   /// Enumerate controls and set up enabled ones.
   void EnumerateControls();
 
+  /// Enumerates ALL the controls.
+  void EnumerateAllControls();
+
   /// Thread that reads data from the camera and calls callbacks
   void CaptureThread();
 
@@ -59,9 +62,33 @@ class CameraPlatform::Impl
   /// Stops the camera
   void Stop();
 
+  /// Called when a param changes
   void OnParamChanged(Param* param, bool raw_set, bool auto_mode);
 
-  void AddParameter(const std::string& name, int ioctl_id);
+  /// Adds a parameter, optionally overriding its name
+  /// Returns true on success (if supported)
+  /// \param queryctrl - query structure from VIDIOC_QUERY_CTRL
+  /// \param override_name - name if we want to override to a standard for param
+  /// \param auto_id - the id of the auto control, or 0 if none.
+  /// \param controlled_name - if this is an auto param, then the name of the param it controls
+  ///                  empty otherwise.
+  bool AddParameter(v4l2_queryctrl& queryctrl, const std::string& override_name, int auto_id,
+                    const std::string& controlled_name = "");
+
+  /// Adds a parameter manually from an id
+  /// Returns true on success (if supported)
+  bool AddParameter(int id, const std::string& name, int auto_id);
+
+  bool AddAutoParameter(int base_id, int auto_id, const std::string& name);
+  /// Check the the control is in auto mode.
+  /// \param param - parameter to check (the base param, not the auto id)
+  /// \return true if it is, false otherwise
+  bool GetAutoMode(ParamRanged<double, double>* param);
+
+  /// Set the control's auto mode
+  /// \param param - parameter to set (the base param, not the auto id)
+  /// \param to_auto - if true, set in automatic mode
+  void SetAutoMode(ParamRanged<double, double>* param, bool to_auto);
 
   static constexpr int kNumBuffers = 1;   ///< Number of buffers to allocate
   std::unique_ptr<BufferGroup> buffers_;  ///< Buffer group for buffers
@@ -71,10 +98,182 @@ class CameraPlatform::Impl
   std::thread camera_thread_;
 
   std::mutex paramControlMutex_;
-  std::map<std::string, int> paramControlMap_;
+  std::map<std::string, int> paramControlMap_;  ///< name -> ctrl id
+
+  // So, some auto controls are bool, but exposure is
+  // a menu with values 1 and 3... so we're going to go ahead
+  // and put them in as params themselves so the weird ones can be handled
+  // but try to duplicate the automatic functionality we have on Windows
+  // for the ones we know.
+  std::map<std::string, std::shared_ptr<Param>> paramAutoParams_;  ///< name->param
+
+  std::map<int, std::string> controlParamMap_;  //
 };
 
+bool CameraPlatform::Impl::AddParameter(v4l2_queryctrl& queryctrl, const std::string& override_name,
+                                        int auto_id, const std::string& controlled_name)
+{
+  {
+    std::lock_guard<std::mutex> lock(paramControlMutex_);
+    // Already added.  We enumerated the control manually, now we're scanning
+    // for other controls - so skip this one.
+    if (controlParamMap_.count(queryctrl.id)) return true;
+  }
+  bool autoMode      = false;
+  bool autoSupported = false;
+
+  std::string name = override_name;
+  if (name.empty())
+  {
+    name = reinterpret_cast<const char*>(&queryctrl.name[0]);
+  }
+
+  if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
+  {
+    // skip if disabled.
+    ZBA_LOG("{} control is disabled by driver.", name);
+    return false;
+  }
+
+  // Get the current value of the item
+  double value = 0;
+  device_->get_video_ctrl(queryctrl.id, value);
+
+  {  // Map the name to the control id
+    {
+      std::lock_guard<std::mutex> lock(paramControlMutex_);
+      ZBA_LOG("Adding {}:{:x}", name, queryctrl.id);
+      paramControlMap_.emplace(name, queryctrl.id);
+      controlParamMap_.emplace(queryctrl.id, name);
+    }
+
+    if (auto_id)
+    {
+      // Add the auto parameter
+      if (AddAutoParameter(queryctrl.id, auto_id, name))
+      {
+        autoSupported = true;
+        // Check if we're in auto mode
+        device_->get_video_ctrl(auto_id, autoMode);
+        ZBA_LOG("Found auto control for {}. Currently {}", name, autoMode);
+      }
+    }
+  }
+
+  // Create subscriber list
+  ParamSubscribers callbacks{
+      {name, std::bind(&CameraPlatform::Impl::OnParamChanged, this, std::placeholders::_1,
+                       std::placeholders::_2, std::placeholders::_3)}};
+
+  // If it's a menu item, create a menu parameter...
+  if (V4L2_CTRL_TYPE_MENU == queryctrl.type)
+  {
+    struct v4l2_querymenu querymenu;
+    memset(&querymenu, 0, sizeof(querymenu));
+    querymenu.id = queryctrl.id;
+
+    auto param    = new ParamMenu(name, callbacks, value, queryctrl.default_value);
+    auto paramPtr = std::shared_ptr<Param>(dynamic_cast<Param*>(param));
+
+    for (auto idx = queryctrl.minimum; idx <= queryctrl.maximum; idx++)
+    {
+      querymenu.index = static_cast<unsigned int>(idx);
+      if (0 == device_->ioctl(VIDIOC_QUERYMENU, &querymenu))
+      {
+        param->addValue(name, querymenu.index);
+      }
+    }
+    {
+      // Add to Camera's parameter list
+      std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
+      parent_.parameters_.emplace(name, paramPtr);
+    }
+
+    if (!controlled_name.empty())
+    {
+      std::lock_guard<std::mutex> lock(paramControlMutex_);
+      paramAutoParams_.emplace(controlled_name, paramPtr);
+    }
+  }
+  else
+  {
+    // Not a menu - ranged.  For now, translate everything to doubles,
+    // but be sure to round when converting to value to send back.
+    auto param = new ParamRanged<double, double>(
+        name, callbacks, value, queryctrl.default_value, queryctrl.minimum, queryctrl.maximum,
+        queryctrl.step, autoMode, autoSupported, RawToScaledNormal, ScaledToRawNormal);
+
+    auto paramPtr = std::shared_ptr<Param>(dynamic_cast<Param*>(param));
+
+    {  // Add to Camera's parameter list
+      std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
+      parent_.parameters_.emplace(name, paramPtr);
+    }
+
+    if (!controlled_name.empty())
+    {
+      std::lock_guard<std::mutex> lock(paramControlMutex_);
+      paramAutoParams_.emplace(controlled_name, paramPtr);
+    }
+  }
+  return true;
+}
+
+bool CameraPlatform::Impl::AddParameter(int id, const std::string& name, int auto_id = 0)
+{
+  v4l2_queryctrl queryctrl;
+  memset(&queryctrl, 0, sizeof(queryctrl));
+  queryctrl.id = id;
+
+  if (0 == device_->ioctl(VIDIOC_QUERYCTRL, &queryctrl))
+  {
+    AddParameter(queryctrl, name, auto_id);
+    return true;
+  }
+  ZBA_LOG("QueryCtrl failed for {} {:x}/{:x}", name, id, auto_id);
+  return false;
+}
+
+bool CameraPlatform::Impl::AddAutoParameter(int base_id, int auto_id, const std::string& name)
+{
+  v4l2_queryctrl queryctrl;
+  memset(&queryctrl, 0, sizeof(queryctrl));
+  queryctrl.id = auto_id;
+
+  if (0 != device_->ioctl(VIDIOC_QUERYCTRL, &queryctrl))
+  {
+    ZBA_ERRNO("Error querying auto parameter {} {:x}/{:x}", name, base_id, auto_id);
+    return false;
+  }
+
+  if (AddParameter(queryctrl, "", 0, name))
+  {
+    return true;
+  }
+  return false;
+}
+
 void CameraPlatform::Impl::EnumerateControls()
+{
+  // Add the same controls as Windows with auto on/off supported
+  AddParameter(V4L2_CID_EXPOSURE_ABSOLUTE, "Exposure", V4L2_CID_EXPOSURE_AUTO);
+  AddParameter(V4L2_CID_FOCUS_ABSOLUTE, "Focus", V4L2_CID_FOCUS_AUTO);
+  AddParameter(V4L2_CID_BRIGHTNESS, "Brightness", V4L2_CID_AUTOBRIGHTNESS);
+  AddParameter(V4L2_CID_WHITE_BALANCE_TEMPERATURE, "WhiteBalance", V4L2_CID_AUTO_WHITE_BALANCE);
+  // No auto
+  AddParameter(V4L2_CID_CONTRAST, "Contrast");
+  AddParameter(V4L2_CID_PAN_ABSOLUTE, "Pan");
+  AddParameter(V4L2_CID_TILT_ABSOLUTE, "Tilt");
+  AddParameter(V4L2_CID_ZOOM_ABSOLUTE, "Zoom");
+
+  // Now add support for anything else we can query.
+  // The goal is to give identical experience on different platforms
+  // on things we can, but provide access to everything else available.
+  ZBA_LOG("Unspecified params");
+  EnumerateAllControls();
+}
+
+void CameraPlatform::Impl::EnumerateAllControls()
 {
   v4l2_queryctrl queryctrl;
   memset(&queryctrl, 0, sizeof(queryctrl));
@@ -82,71 +281,7 @@ void CameraPlatform::Impl::EnumerateControls()
 
   while (0 == device_->ioctl(VIDIOC_QUERYCTRL, &queryctrl))
   {
-    std::string name = reinterpret_cast<const char*>(&queryctrl.name[0]);
-    // If it's not disabled...
-    if (!(queryctrl.flags & V4L2_CTRL_FLAG_DISABLED))
-    {
-      // Get the current value of the item
-      double value = 0;
-      v4l2_control control;
-      memset(&control, 0, sizeof(control));
-      control.id = queryctrl.id;
-      if (0 == device_->ioctl(VIDIOC_G_CTRL, &control))
-      {
-        value = static_cast<double>(control.value);
-      }
-      {  // Map the name to the control id
-        std::lock_guard<std::mutex> lock(paramControlMutex_);
-        ZBA_LOG("Adding {}:{:x}", name, queryctrl.id);
-        paramControlMap_.emplace(name, queryctrl.id);
-      }
-
-      // Create subscriber list
-      ParamSubscribers callbacks{
-          {name, std::bind(&CameraPlatform::Impl::OnParamChanged, this, std::placeholders::_1,
-                           std::placeholders::_2, std::placeholders::_3)}};
-
-      // If it's a menu item, create a menu parameter...
-      if (V4L2_CTRL_TYPE_MENU == queryctrl.type)
-      {
-        struct v4l2_querymenu querymenu;
-        memset(&querymenu, 0, sizeof(querymenu));
-        querymenu.id = queryctrl.id;
-
-        auto param = new ParamMenu(name, callbacks, value, queryctrl.default_value);
-
-        for (auto idx = queryctrl.minimum; idx <= queryctrl.maximum; idx++)
-        {
-          querymenu.index = static_cast<unsigned int>(idx);
-          if (0 == device_->ioctl(VIDIOC_QUERYMENU, &querymenu))
-          {
-            param->addValue(name, querymenu.index);
-          }
-        }
-        {
-          // Add to Camera's parameter list
-          std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
-          parent_.parameters_.emplace(name, std::shared_ptr<Param>(dynamic_cast<Param*>(param)));
-        }
-      }
-      else
-      {
-        // Not a menu - ranged.  For now, translate everything to doubles,
-        // but be sure to round when converting to value to send back.
-
-        /// {TODO} Would be nice to support auto on/off like winrt does.
-        /// Need to pair control ids somehow
-        bool autoMode = false;
-        auto param    = new ParamRanged<double, double>(
-            name, callbacks, value, queryctrl.default_value, queryctrl.minimum, queryctrl.maximum,
-            autoMode, RawToScaledNormal, ScaledToRawNormal);
-
-        {  // Add to Camera's parameter list
-          std::lock_guard<std::mutex> lock(parent_.parameter_mutex_);
-          parent_.parameters_.emplace(name, std::shared_ptr<Param>(dynamic_cast<Param*>(param)));
-        }
-      }
-    }
+    AddParameter(queryctrl, "", 0);
     // Go to next one.
     queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
   }
@@ -294,9 +429,7 @@ void CameraPlatform::Impl::Start()
   buffers_ = std::make_unique<BufferGroup>(device_, kNumBuffers);
 
   // Start streaming
-  unsigned int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-  if (-1 == device_->ioctl(VIDIOC_STREAMON, &type))
+  if (-1 == device_->start_video_stream())
   {
     ZBA_THROW("Error starting streaming!", Result::ZBA_CAMERA_ERROR);
   }
@@ -306,16 +439,16 @@ void CameraPlatform::Impl::Start()
 
 void CameraPlatform::Impl::Stop()
 {
-  // Stop streaming
+  // Stop thread
   if (camera_thread_.joinable())
   {
     camera_thread_.join();
   }
 
+  // Stop streaming
   if (started_)
   {
-    int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (-1 == device_->ioctl(VIDIOC_STREAMOFF, &type))
+    if (-1 == device_->stop_video_stream())
     {
       ZBA_THROW("Error stopping streaming!", Result::ZBA_CAMERA_ERROR);
     }
@@ -471,6 +604,7 @@ void CameraPlatform::Impl::EnumerateModes(ModeCallback cb)
       std::string format_str(reinterpret_cast<char*>(&frameSize.pixel_format), 4);
       float fps = 0.0f;
       /// {TODO} investigate stepwise sizes. For now, ignore them.
+      /// None of my cameras seem to produce them.
       if (V4L2_FRMSIZE_TYPE_DISCRETE != frameSize.type)
       {
         continue;
@@ -512,10 +646,68 @@ void CameraPlatform::Impl::EnumerateModes(ModeCallback cb)
   }
 }
 
-void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool /*auto_mode*/)
+bool CameraPlatform::Impl::GetAutoMode(ParamRanged<double, double>* param)
+{
+  std::shared_ptr<Param> autoParam;
+  {
+    std::lock_guard<std::mutex> lock(paramControlMutex_);
+    auto iter = paramAutoParams_.find(param->name());
+    if (iter == paramAutoParams_.end())
+    {
+      return false;
+    }
+    autoParam = iter->second;
+  }
+  if (!autoParam) return false;
+
+  auto paramRanged = dynamic_cast<ParamRanged<double, double>*>(autoParam.get());
+  if (paramRanged)
+  {
+    return (paramRanged->getScaled() > 0.5) ? true : false;
+  }
+
+  auto paramMenu = dynamic_cast<ParamMenu*>(autoParam.get());
+  if (paramMenu)
+  {
+    return (paramMenu->getIndex()) ? true : false;
+  }
+
+  return false;
+}
+
+void CameraPlatform::Impl::SetAutoMode(ParamRanged<double, double>* param, bool to_auto)
+{
+  std::shared_ptr<Param> autoParam;
+  {
+    std::lock_guard<std::mutex> lock(paramControlMutex_);
+    auto iter = paramAutoParams_.find(param->name());
+    if (iter == paramAutoParams_.end())
+    {
+      return;
+    }
+    autoParam = iter->second;
+  }
+  if (!autoParam) return;
+
+  auto paramRanged = dynamic_cast<ParamRanged<double, double>*>(autoParam.get());
+  if (paramRanged)
+  {
+    paramRanged->setScaled(to_auto);
+    return;
+  }
+
+  auto paramMenu = dynamic_cast<ParamMenu*>(autoParam.get());
+  if (paramMenu)
+  {
+    paramMenu->setIndex(to_auto ? 1 : 0);
+    return;
+  }
+}
+
+void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool auto_mode)
 {
   auto name = param->name();
-  ZBA_LOG("Exposure {:x} Auto {:x}", V4L2_CID_EXPOSURE, V4L2_CID_EXPOSURE_AUTO);
+
   // Find control id
   int ctrl = 0;
   {
@@ -531,26 +723,65 @@ void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool /*aut
       return;
     }
   }
-  v4l2_control control;
-  memset(&control, 0, sizeof(control));
-  control.id = ctrl;
 
-  // Ranged controls
   auto paramRanged = dynamic_cast<ParamRanged<double, double>*>(param);
+  // Ranged controls
   if (paramRanged)
   {
-    ZBA_LOG("Param {}:{:x}: changed ( RawSet: {} - Raw:{} Scaled:{})", name, ctrl, raw_set,
-            paramRanged->get(), paramRanged->getScaled());
-
     if (!raw_set)
     {
-      /// {TODO} Add auto_mode support here if possible later.
-      control.value = paramRanged->get();
+      bool in_auto = false;
 
-      if (0 != device_->ioctl(VIDIOC_S_CTRL, &control))
+      if (paramRanged->autoSupported())
       {
-        ZBA_ERRNO("Error setting ranged control value on {}:{:x} to {}!", name, ctrl,
-                  paramRanged->get());
+        // Check if it's in auto mode here (set in_auto)
+        in_auto = GetAutoMode(paramRanged);
+        if (auto_mode != in_auto)
+        {
+          if (auto_mode)
+          {
+            // Set control to default value if we're setting auto, in case driver
+            // reports supported but not really.
+            device_->set_video_ctrl(ctrl, paramRanged->default_value());
+          }
+
+          // Set auto mode
+          SetAutoMode(paramRanged, auto_mode);
+        }
+      }
+      else if (auto_mode)
+      {
+        // Maybe set to default here? Auto requested but not supported
+        ZBA_LOG("Auto change requested but control doesn't support. Setting to default.");
+        auto_mode = false;
+        paramRanged->setAuto(false, false);
+        paramRanged->set(paramRanged->default_value());
+        // Set value to ranged param value.
+        device_->set_video_ctrl(ctrl, paramRanged->get());
+        return;
+      }
+
+      if (!auto_mode)
+      {
+        if (0 != device_->set_video_ctrl(ctrl, paramRanged->get()))
+        {
+          ZBA_ERRNO("Error setting ranged control value on {}:{:x} to {}!", name, ctrl,
+                    paramRanged->get());
+        }
+      }
+      else
+      {
+        double value = paramRanged->get();
+
+        // retrieve value from control
+        device_->get_video_ctrl(ctrl, value);
+
+        if (std::abs(value - paramRanged->get()) > std::numeric_limits<double>::epsilon())
+        {
+          // If it's in auto, and we're trying to set it from the GUI,
+          // just update it from the hardware.
+          paramRanged->set(value);
+        }
       }
     }
 
@@ -561,14 +792,9 @@ void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool /*aut
   auto paramMenu = dynamic_cast<ParamMenu*>(param);
   if (paramMenu)
   {
-    ZBA_LOG("Param {}:{:x}: changed ( index {} value {} desc {})", name, ctrl,
-            paramMenu->getIndex(), paramMenu->get(), paramMenu->to_string());
-
     if (!raw_set)
     {
-      control.value = paramMenu->get();
-
-      if (0 != device_->ioctl(VIDIOC_S_CTRL, &control))
+      if (0 != device_->set_video_ctrl(ctrl, paramMenu->get()))
       {
         ZBA_ERRNO("Error setting menu control value on {}:{:x} to {}!", name, ctrl,
                   paramMenu->get());
@@ -576,8 +802,6 @@ void CameraPlatform::Impl::OnParamChanged(Param* param, bool raw_set, bool /*aut
     }
     return;
   }
-
-  ZBA_LOG("Param {} changed. RawSet: {}", name, raw_set);
 }
 
 }  // namespace zebral

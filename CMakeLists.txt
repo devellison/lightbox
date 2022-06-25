@@ -11,7 +11,7 @@ project(
 )
 
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
 if(MSVC)
@@ -19,6 +19,7 @@ if(MSVC)
 else()
   set(CMAKE_CXX_FLAGS_DEBUG "-g")
   set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3")
 endif()
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -46,7 +47,6 @@ find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED highgui core)
 find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
 find_package(OpenMP)
-
 # Setup gtest Note - this seems kinda slow/repeatedly run. Moving to global for
 # now.
 include(FetchContent)
