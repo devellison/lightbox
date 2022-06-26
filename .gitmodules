@@ -1,3 +1,3 @@
 [submodule "zebral"]
 	path = zebral
-	url = git@github.com:devellison/zebral.git
+	url = https://github.com/devellison/zebral.git
