@@ -18,6 +18,9 @@ It is now used as a submodule, so when cloning:
  - If you're cloning lightbox, add the recursive switch:<br>
    ```git clone --recursive https://github.com/devellison/lightbox.git```
 
+To update Zebral (it's a work in progress):
+ - `git submodule update --remote`
+
 ## Firmware
 Firmware responds to serial line commands or a button. "help" for help.
 Camera can enumerate devices and modes and capture and decode basic frames.
