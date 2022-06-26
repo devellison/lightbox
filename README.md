@@ -1,3 +1,5 @@
+# Lightbox Project
+
 Lightbox is for a custom lightbox system with a camera.
 It's a research project and under early active hacking.
 More details TBA.  
@@ -8,15 +10,19 @@ It doesn't do much yet - base firmware in `./firmware` and the start of the came
 library in `./zebral/camera` are the most developed.
 
 ## NOTE: Zebral has been split to its own repo.
-It is now used as a submodule, so when cloning:
- - If you've cloned lightbox, you'll need to update the submodules like:
-   `git submodule update --init --recursive`
- - If you're cloning lightbox, add the recursive switch:
-   `git clone --recursive https://github.com/devellison/lightbox.git`
+https://github.com/devellison/zebral
 
+It is now used as a submodule, so when cloning:
+ - If you've cloned lightbox, you'll need to update the submodules like:<br>
+   ```git submodule update --init --recursive```
+ - If you're cloning lightbox, add the recursive switch:<br>
+   ```git clone --recursive https://github.com/devellison/lightbox.git```
+
+## Firmware
 Firmware responds to serial line commands or a button. "help" for help.
 Camera can enumerate devices and modes and capture and decode basic frames.
 
+## Building
 Currently developing it with:
 - C++20, Clang-12, MSVC 2019 (2022 for CI)
 - 64-bit Windows 11 / C++/WinRT and Ubuntu 22.04 (20.04 for CI)/ V4L2
