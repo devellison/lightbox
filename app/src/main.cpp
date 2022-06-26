@@ -120,8 +120,8 @@ int main(int argc, char* argv[])
   auto mode = *modeMaybe;
   cv::Rect roi(0, 0, 0, 0);
 
-  bool first    = true;
-  int param_idx = 0;
+  bool first       = true;
+  size_t param_idx = 0;
 
   do
   {
