@@ -45,6 +45,7 @@ REM cmake-gui -S . -B build || GOTO gen_error
 cmake -S . -B build || GOTO gen_error
 cmake --build build --config %buildtype% -j8 || GOTO build_error
 IF %test%==1 cmake --build build --config %buildtype% -t RUN_TESTS || GOTO test_error
+IF %docs%==1 cmake --build build --config %buildtype% -t zebral_docs || GOTO test_error
 IF %package%==1 cmake --build build --config %buildtype% -t package || GOTO package_error
 :success
 popd

@@ -60,7 +60,6 @@ target_link_libraries(
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 add_subdirectory(test)
-add_subdirectory(utils)
 
 # Binary and includes...
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
