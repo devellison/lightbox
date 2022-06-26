@@ -7,6 +7,13 @@ More details TBA.
 It doesn't do much yet - base firmware in `./firmware` and the start of the camera
 library in `./zebral/camera` are the most developed.
 
+## NOTE: Zebral has been split to its own repo.
+It is now used as a submodule, so when cloning:
+ - If you've cloned lightbox, you'll need to update the submodules like:
+   `git submodule update --init --recursive`
+ - If you're cloning lightbox, add the recursive switch:
+   `git clone --recursive https://github.com/devellison/lightbox.git`
+
 Firmware responds to serial line commands or a button. "help" for help.
 Camera can enumerate devices and modes and capture and decode basic frames.
 
