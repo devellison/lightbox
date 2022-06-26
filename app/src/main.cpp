@@ -41,14 +41,20 @@ int main(int argc, char* argv[])
   auto camList = camMgr.Enumerate();
 
   // Check if we have enough arguments
-  if (argc < 3)
+  if (argc < 2)
   {
     printHelp();
     return 0;
   }
 
-  int camIndex       = atoi(argv[1]);
-  std::string format = argv[2];
+  int camIndex = atoi(argv[1]);
+  std::string format;
+
+  if (argc >= 2)
+  {
+    format = argv[2];
+  }
+
   std::shared_ptr<Camera> camera;
 
   int idx = 0;
@@ -68,8 +74,8 @@ int main(int argc, char* argv[])
         f.format = format;
         f.width  = 640;
         f.height = 480;
-        camera->SetFormat(f, Camera::DecodeType::INTERNAL);
-        // camera->SetFormat(f);
+        // camera->SetFormat(f, Camera::DecodeType::INTERNAL);
+        camera->SetFormat(f);
       }
     }
     idx++;
@@ -114,8 +120,8 @@ int main(int argc, char* argv[])
   auto mode = *modeMaybe;
   cv::Rect roi(0, 0, 0, 0);
 
-  bool first    = true;
-  int param_idx = 0;
+  bool first       = true;
+  size_t param_idx = 0;
 
   do
   {
@@ -133,6 +139,7 @@ int main(int argc, char* argv[])
       std::cout << "     = - increase param" << std::endl;
       std::cout << "     [ - min param" << std::endl;
       std::cout << "     ] - max param" << std::endl;
+      std::cout << "     p - list params" << std::endl;
       first = false;
     }
 
@@ -193,6 +200,17 @@ int main(int argc, char* argv[])
           cv::destroyWindow("ROI selector");
         }
         break;
+      case 'p':
+      {
+        auto names = camera->GetParameterNames();
+        for (size_t i = 0; i < names.size(); ++i)
+        {
+          std::cout << names[i];
+          if (i == param_idx) std::cout << "*";
+          std::cout << std::endl;
+        }
+      }
+      break;
       case 'x':
       {
         auto names = camera->GetParameterNames();

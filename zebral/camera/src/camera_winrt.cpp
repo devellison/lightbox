@@ -276,7 +276,7 @@ FormatInfo MediaFrameFormatToFormat(const MediaFrameFormat& curFormat)
 {
   auto frameRate = curFormat.FrameRate();
   float fps      = std::round(100.0f * static_cast<float>(frameRate.Numerator()) /
-                              static_cast<float>(frameRate.Denominator())) /
+                         static_cast<float>(frameRate.Denominator())) /
               100.0f;
 
   return FormatInfo(curFormat.VideoFormat().Width(), curFormat.VideoFormat().Height(), fps,
@@ -356,7 +356,6 @@ CameraPlatform::Impl::Impl(CameraPlatform* parent)
   AddParameter("Focus", videoDevCtrl_.Focus(), true);
   AddParameter("Brightness", videoDevCtrl_.Brightness(), true);
   AddParameter("WhiteBalance", videoDevCtrl_.WhiteBalance(), true);
-
   // These don't, setting auto sets to default
   AddParameter("Contrast", videoDevCtrl_.Contrast(), false);
   AddParameter("Pan", videoDevCtrl_.Pan(), false);

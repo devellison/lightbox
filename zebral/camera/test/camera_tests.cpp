@@ -65,64 +65,96 @@ TEST(CameraTests, ConvertSpeeds)
     ZBA_ERR("NO CAMERAS FOUND, SKIPPING TESTS");
     return;
   }
-  auto camera = cmgr.Create(camList[0]);
-  FormatInfo f;
-  f.fps    = 30;
-  f.width  = 640;
-  f.height = 480;
-#if _WIN32
-  f.format = "YUY2";
-#else
-  f.format = "YUYV";
-#endif
-  camera->SetFormat(f, Camera::DecodeType::NONE);
-  camera->Start();
-  auto maybeFrame = camera->GetNewFrame();
-  if (maybeFrame)
+
+  size_t idx = 0;
+  std::shared_ptr<zebral::Camera> camera;
+  bool test_run = false;
+  while ((idx < camList.size()) && (!test_run))
   {
-    auto frame = *maybeFrame;
-    CameraFrame f1, f2;
-    YUV2RGB = YUVToRGB;
-
-    auto start1 = zba_now();
-    for (int i = 0; i < 100; i++)
+    camera = cmgr.Create(camList[idx]);
+    FormatInfo f;
+    f.fps    = 30;
+    f.width  = 640;
+    f.height = 480;
+#if _WIN32
+    f.format = "YUY2";
+#else
+    f.format = "YUYV";
+#endif
+    try
     {
-      f1 = YUY2ToBGRFrame(frame.data(), frame.width(), frame.height(),
-                          frame.width() * frame.channels() * frame.bytes_per_channel());
+      camera->SetFormat(f, Camera::DecodeType::NONE);
     }
-    auto time1 = zba_elapsed_sec(start1);
-
-    YUV2RGB     = YUVToRGBFixed;
-    auto start2 = zba_now();
-    for (int i = 0; i < 100; i++)
-      f2 = YUY2ToBGRFrame(frame.data(), frame.width(), frame.height(),
-                          frame.width() * frame.channels() * frame.bytes_per_channel());
-    auto time2 = zba_elapsed_sec(start2);
-    ZBA_LOG("Float: {}  Fixed: {}", time1, time2);
-    ZBA_ASSERT(time1 > time2, "Fixed should be much faster");
-
-    if (0 != memcmp(f1.data(), f2.data(), f1.data_size()))
+    catch (const zebral::Error& e)
     {
-      ZBA_ERR("Pixels different!");
-      size_t diff  = 0;
-      int max_diff = 0;
-      for (size_t i = 0; i < f1.data_size(); i++)
+      ZBA_LOG("{}. Skipping camera {}.", e.what(), camList[idx].name);
+      ++idx;
+      continue;
+    }
+    camera->Start();
+    auto maybeFrame = camera->GetNewFrame();
+    if (maybeFrame)
+    {
+      auto frame = *maybeFrame;
+      CameraFrame f1, f2;
+      YUV2RGB = YUVToRGB;
+
+      auto start1 = zba_now();
+      for (int i = 0; i < 100; i++)
       {
-        uint8_t b1 = f1.data()[i];
-        uint8_t b2 = f2.data()[i];
-        if (b1 != b2)
-        {
-          max_diff = std::max(std::abs(b1 - b2), max_diff);
-
-          // ZBA_ERR("{}: {} vs {}", i, b1, b2);
-          ++diff;
-        }
+        f1 = YUY2ToBGRFrame(frame.data(), frame.width(), frame.height(),
+                            frame.width() * frame.channels() * frame.bytes_per_channel());
       }
-      ZBA_ERR("{} pixels different out of {}", diff, f1.data_size());
-      ZBA_ASSERT(max_diff <= 1, "Error must be rounding, not a real error!");
-    }
-  }
+      auto time1 = zba_elapsed_sec(start1);
 
+      YUV2RGB     = YUVToRGBFixed;
+      auto start2 = zba_now();
+      for (int i = 0; i < 100; i++)
+        f2 = YUY2ToBGRFrame(frame.data(), frame.width(), frame.height(),
+                            frame.width() * frame.channels() * frame.bytes_per_channel());
+      auto time2 = zba_elapsed_sec(start2);
+      ZBA_LOG("Float: {}  Fixed: {}", time1, time2);
+      ZBA_ASSERT(time1 > time2, "Fixed should be much faster");
+
+      if (0 != memcmp(f1.data(), f2.data(), f1.data_size()))
+      {
+        ZBA_ERR("Pixels different!");
+        size_t diff  = 0;
+        int max_diff = 0;
+        for (size_t i = 0; i < f1.data_size(); i++)
+        {
+          uint8_t b1 = f1.data()[i];
+          uint8_t b2 = f2.data()[i];
+          if (b1 != b2)
+          {
+            auto curdiff = std::abs(b1 - b2);
+            max_diff     = std::max(curdiff, max_diff);
+            if (curdiff > 1)
+            {
+              ZBA_ERR("Pixel at {} is over 1 value different! {} vs {}", i, b1, b2);
+            }
+            // ZBA_ERR("{}: {} vs {}", i, b1, b2);
+            ++diff;
+          }
+        }
+        if (max_diff > 1)
+        {
+          std::ofstream o1("Test_Source.ppm");
+          std::ofstream o2("Test_Slow.ppm");
+          std::ofstream o3("Test_Fast.ppm");
+          frame.write_ppm(o1);
+          f1.write_ppm(o2);
+          f2.write_ppm(o3);
+        }
+        ZBA_ERR("{} pixels different out of {}", diff, f1.data_size());
+        ZBA_ASSERT(max_diff <= 1, "Error must be rounding, not a real error!");
+      }
+    }
+    idx++;
+    test_run = true;
+  }
+  // If we have any cameras attached, assume one of them should have had YUYV....
+  ASSERT_TRUE(test_run);
   camera->Stop();
 }
 

@@ -6,13 +6,13 @@ project(
   LANGUAGES CXX
 )
 
-# Add lightbox app (move these to separate library)
+# Add camera utility
 set(ZEB_SRC zebral_camera_util.cpp)
 set(ZEB_INC)
 
 add_executable(${PROJECT_NAME} ${ZEB_SRC} ${ZEB_INC})
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC zebralcam::zebralcam ${OpenCV_INCLUDE_DIRS}
+  ${PROJECT_NAME} PUBLIC zebralcam::zebralcam zebralcommon::zebralcommon ${OpenCV_INCLUDE_DIRS} ${fmt_INCLUDE_DIRS}
 )
 target_compile_definitions(
   ${PROJECT_NAME} PUBLIC LIGHTBOX_VERSION="${PROJECT_VERSION}"

@@ -392,52 +392,16 @@ class ParamMenu : public ParamVal<int>
     menu_values_.emplace_back(value);
   }
 
-  /// Retrieves the scaled value
-  /// \returns ScaledType - scaled value
-  int getIndex() const
-  {
-    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
-    for (int i = 0; i < static_cast<int>(menu_descs_.size()); ++i)
-    {
-      if (value_ == menu_values_[i])
-      {
-        return i;
-      }
-    }
-    ZBA_ERR("Invalid menu item, can't find index for {}:{}!", name_, value_);
-    return -1;
-  }
+  /// \returns index from value, or -1 if invalid
+  int getIndex() const;
 
   /// Retrieve the number of menu items
-  int getCount() const
-  {
-    std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
-    return static_cast<int>(menu_descs_.size());
-  }
+  int getCount() const;
 
   /// Sets the value from a scaled value.
   /// /param scaled - scaled value
   /// \returns true - if true, the value was in range. If false, it was out of range and clamped.
-  bool setIndex(int idx)
-  {
-    bool changed = false;
-    bool err     = false;
-    {
-      std::lock_guard<std::recursive_mutex> lock(Param::val_mutex_);
-      if ((idx >= 0) && (idx < static_cast<int>(menu_descs_.size())))
-      {
-        changed               = true;
-        ParamVal<int>::value_ = menu_values_[idx];
-      }
-      else
-      {
-        ZBA_ERR("Invalid menu index for {}({})", name_, idx);
-        err = true;
-      }
-    }
-    if (changed) ParamVal<int>::OnChanged(false);
-    return err;
-  }
+  bool setIndex(int idx);
 
   /// Dumps the unique part of ParamMenu to an ostream
   std::ostream& dump(std::ostream& os) const

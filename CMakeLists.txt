@@ -84,7 +84,6 @@ endif()
 add_subdirectory(zebral)
 add_subdirectory(app)
 add_subdirectory(test)
-add_subdirectory(python)
 
 set(DOXYGEN_FILE_PATTERNS
     *.hpp

@@ -3,6 +3,9 @@
 #ifndef LIGHTBOX_CAMERA_CAMERA_FRAME_HPP_
 #define LIGHTBOX_CAMERA_CAMERA_FRAME_HPP_
 
+#include <fstream>
+#include <iostream>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -156,6 +159,39 @@ class CameraFrame
   uint8_t* data()
   {
     return data_.data();
+  }
+
+  /// Write the frame to a text-based image for debugging
+  /// returns false if not supported for frame type.
+  bool write_ppm(std::ostream& out)
+  {
+    if ((bytes_per_channel_ == 1) && (channels_ == 3))
+    {
+      // P6 ASCII PPM format
+      out << "P6" << std::endl;
+      out << width_ << " " << height_ << std::endl;
+      out << "255" << std::endl;
+      out.write(reinterpret_cast<char*>(data_.data()), data_.size());
+      return true;
+    }
+    else if ((channels_ == 1) && (bytes_per_channel_ <= 2))
+    {
+      // P5 ASCII PPM format
+      out << "P5" << std::endl;
+      out << width_ << " " << height_ << std::endl;
+
+      if (bytes_per_channel_ == 1)
+      {
+        out << "255" << std::endl;
+      }
+      else if (bytes_per_channel_ == 2)
+      {
+        out << "65535" << std::endl;
+      }
+      out.write(reinterpret_cast<char*>(data_.data()), data_.size());
+      return true;
+    }
+    return false;
   }
 
  protected:
