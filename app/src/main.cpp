@@ -5,6 +5,7 @@
 #include <iostream>
 #include "camera.hpp"
 #include "camera2cv.hpp"
+#include "camera_http.hpp"
 #include "camera_manager.hpp"
 #include "errors.hpp"
 #include "lightbox.hpp"
@@ -17,7 +18,7 @@ using namespace zebral;
 void printHelp()
 {
   std::cout << "lightbox v" << LIGHTBOX_VERSION << " by Michael Ellison " << std::endl;
-  std::cout << "Usage: lightbox CAMERA_INDEX FORMAT [SERIAL_PORT]" << std::endl;
+  std::cout << "Usage: lightbox CAMERA_INDEX FORMAT [USER] [PASSWORD]" << std::endl;
 }
 
 void saveImage(ZBA_TSTAMP time, const cv::Mat& img, const std::filesystem::path& path,
@@ -47,38 +48,69 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-  int camIndex = atoi(argv[1]);
+  int camIndex = 0;
+  std::string camUri;
+  // If it's an http camera, we don't go by index but instead just go to the URI
+  if (0 != strncmp(argv[1], "http://", 7))
+    camIndex = atoi(argv[1]);
+  else
+    camUri = argv[1];
+
   std::string format;
 
-  if (argc >= 2)
+  if (argc >= 3)
   {
     format = argv[2];
   }
 
+  std::string user, pwd;
+
+  if (argc >= 5)
+  {
+    user = argv[3];
+    pwd  = argv[4];
+  }
+
   std::shared_ptr<Camera> camera;
 
-  int idx = 0;
-  for (auto& curCam : camList)
+  if (camUri.empty())
   {
-    // Create it
-    if (idx == camIndex)
+    int idx = 0;
+    for (auto& curCam : camList)
     {
-      std::cout << "Selected camera:" << curCam << std::endl;
-      camera    = camMgr.Create(curCam);
-      auto info = camera->GetCameraInfo();
-      if (info.formats.size())
+      // Create it
+      if (idx == camIndex)
       {
-        // Largest 30fps format.
-        FormatInfo f;
-        f.fps    = 30;
-        f.format = format;
-        f.width  = 640;
-        f.height = 480;
-        // camera->SetFormat(f, Camera::DecodeType::INTERNAL);
-        camera->SetFormat(f);
+        std::cout << "Selected camera:" << curCam << std::endl;
+        camera    = camMgr.Create(curCam);
+        auto info = camera->GetCameraInfo();
+        if (info.formats.size())
+        {
+          // Largest 30fps format.
+          FormatInfo f;
+          f.fps    = 30;
+          f.format = format;
+          f.width  = 640;
+          f.height = 480;
+          try
+          {
+            camera->SetFormat(f, Camera::DecodeType::SYSTEM);
+          }
+          catch (const Error& e)
+          {
+            std::cerr << "Error setting format: " << e.what() << std::endl;
+            return to_int(Result::ZBA_CAMERA_ERROR);
+          }
+
+          // camera->SetFormat(f);
+        }
       }
+      idx++;
     }
-    idx++;
+  }
+  else
+  {
+    camera = std::shared_ptr<Camera>(new CameraHttp("net", camUri, user, pwd));
   }
 
   // Bail if we don't have a camera
@@ -115,9 +147,13 @@ int main(int argc, char* argv[])
   const int kMaxBufferSize = 10;
 
   auto modeMaybe = camera->GetFormat();
-  ZBA_ASSERT(modeMaybe, "Must get camera format");
+  if (!modeMaybe)
+  {
+    ZBA_ERR("Couldn't get camera mode after starting...");
+  }
+  // ZBA_ASSERT(modeMaybe, "Must get camera format");
 
-  auto mode = *modeMaybe;
+  // auto mode = *modeMaybe;
   cv::Rect roi(0, 0, 0, 0);
 
   bool first       = true;
