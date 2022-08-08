@@ -32,9 +32,7 @@ It provides a web interface to camera, gpio, and leds.  Very much work in progre
 Currently developing it with:
 - C++20, Clang-12, MSVC 2019 (2022 for CI)
 - 64-bit Windows 11 / C++/WinRT and Ubuntu 22.04 (20.04 for CI)/ V4L2
-- [Adafruit Feather RP2040](https://learn.adafruit.com/adafruit-feather-rp2040-pico/circuitpython)
-- [Wiki has more hardware details](https://github.com/devellison/lightbox/wiki)
-
+- ESP32-CAM (Using ESP-IDF/FreeRTOS) and Assorted hardware
 - Install dependencies:
   - As it's actively being developed, might check the [workflows](https://github.com/devellison/lightbox/tree/main/.github/workflows) for latest requirements for building.
   - Windows:
@@ -42,24 +40,27 @@ Currently developing it with:
     - Set up OpenCV 4.5.5, including videoio, highgui, and core 
       (current binary release didn't seem to have these, but choco did)
     - Doxygen, graphviz, cmake-format (pip install), clang-format
+    - libCurl, libjpeg-turbo
   - Linux:
     - Currently using Clang-12 (CMake 3.23)
     - Using OpenCV 4.2 from Ubuntu's distribution
     - libfmt (on Linux) should be built and installed
     - Google test is downloaded by CMake currently
+    - libCurl, libjpeg-turbo
   - Build tools and deps for both:    
     - CMake v3.20+ (you can get it from kitware for ubuntu)
     - OpenMP (optional, not using it much yet)
     - Doxygen, graphviz, cpack, cmake-format (pip install), clang-format
     - Python 3.10.5+ and PyBind11 for python bindings
     - Numpy and OpenCV-python (pip installs) are required for the python tests
-- Set up hardware (Web Camera, Feather RP2040, many many LEDs, relay boards, TBD)
+- Set up hardware (Web Camera, ESP32-CAM, many many LEDs, relay boards, TBD)
     - See the Wiki, will doc wiring/etc. as it gets more solidified.
-- Install CircuitPython to Adafruit Feather RP2040
-- Copy `code.py` and `lightbar.py` from the `firmware` directory to Adafruit Feather RP2040's root directory
 - Configure and compile app using normal CMake commands, or just run the scripts from the base directory.
   - `build_win.bat` for Windows
   - `./build_linux.sh` for Linux
-- Run it!
-  - Windows: `build\app\Release\lightbox_app.exe`
-  - Linux: `build/app/lightbox_app`
+- Right now there's a test app that can do some things with the supported cameras, but a real GUI / app
+  is still TBA
+  - Windows: 
+    - `build\app\Release\lightbox_app.exe 0 YUV2`
+    - `build\app\Release\lightbox_app.exe http://10.0.0.16:81/video UNUSED username password`
+  - Linux: `build/app/lightbox_app 0 YUYV`
