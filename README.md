@@ -11,6 +11,8 @@ library in `./zebral/camera` are the most developed.
 
 ## NOTE: Zebral has been split to its own repo.
 https://github.com/devellison/zebral
+## Firmware is its own submodule too:
+https://github.com/devellison/zebral_esp32cam
 
 It is now used as a submodule, so when cloning:
  - If you've cloned lightbox, you'll need to update the submodules like:<br>
@@ -22,8 +24,9 @@ To update Zebral (it's a work in progress):
  - `git submodule update --remote`
 
 ## Firmware
-Firmware responds to serial line commands or a button. "help" for help.
-Camera can enumerate devices and modes and capture and decode basic frames.
+I've switched from using an RP2040 Feather for LED control to using an ESP32-CAM with a little additional hardware.
+Code for the firmware is in firmware/zebral_esp32cam, some basic schematics are in there as well.
+It provides a web interface to camera, gpio, and leds.  Very much work in progress there.
 
 ## Building
 Currently developing it with:

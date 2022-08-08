@@ -1,3 +1,6 @@
 [submodule "zebral"]
 	path = zebral
 	url = https://github.com/devellison/zebral.git
+[submodule "firmware/Zebral_ESP32Cam"]
+	path = firmware/Zebral_ESP32Cam
+	url = https://github.com/devellison/Zebral_ESP32Cam.git
