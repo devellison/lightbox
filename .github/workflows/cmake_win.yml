@@ -10,6 +10,8 @@ env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   OpenCV_DIR: C:/tools/opencv/build
+  JPEG_DIR: c:\libjpeg-turbo64\lib\
+  JPEG_ROOT: c:\libjpeg-turbo64\
   pybind11_DIR: c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages
     
 jobs:
@@ -46,6 +48,21 @@ jobs:
         pip install pybind11
         pip install opencv-python
         pip install numpy
+
+    - name: Install libcurl
+      run: |
+        git clone https://github.com/curl/curl.git  ${{ github.workspace }}/curl
+        cmake -S ${{ github.workspace }}/curl -B ${{ github.workspace }}/curl/build
+        cmake --build ${{ github.workspace }}/curl/build
+        cmake --build ${{ github.workspace }}/curl/build -t install        
+    
+    - name: Install libjpeg-turbo
+      run: |
+        git clone https://github.com/libjpeg-turbo/libjpeg-turbo.git  ${{ github.workspace }}/libjpeg
+        cmake -S ${{ github.workspace }}/libjpeg -B ${{ github.workspace }}/libjpeg/build
+        cmake --build ${{ github.workspace }}/libjpeg/build
+        cmake --build ${{ github.workspace }}/libjpeg/build -t install
+        echo "c:\libjpeg-turbo64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
