@@ -47,6 +47,7 @@ find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED highgui core)
 find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS mscgen dia)
 find_package(OpenMP)
+
 # Setup gtest Note - this seems kinda slow/repeatedly run. Moving to global for
 # now.
 include(FetchContent)
@@ -68,6 +69,26 @@ if(NOT googletest_POPULATED)
     ${googletest_SOURCE_DIR} ${googletest_BINARY_DIR} EXCLUDE_FROM_ALL
   )
 endif()
+
+#set(NANOGUI_BUILD_PYTHON OFF CACHE INTERNAL "")
+#set(NANOGUI_BUILD_SHARED OFF CACHE INTERNAL "")
+#FetchContent_Declare(
+#  NanoGUI
+#  GIT_REPOSITORY https://github.com/wjakob/nanogui.git
+#)
+#FetchContent_MakeAvailable(NanoGUI)
+# Disable building extras we won't need (pure C++ project)
+set(NANOGUI_BUILD_EXAMPLE OFF CACHE BOOL " " FORCE)
+set(NANOGUI_BUILD_PYTHON  OFF CACHE BOOL " " FORCE)
+set(NANOGUI_INSTALL       OFF CACHE BOOL " " FORCE)
+set(NANOGUI_BUILD_SHARED  OFF CACHE BOOL " " FORCE)
+
+# Add the configurations from nanogui
+add_subdirectory(ext/nanogui)
+
+# For reliability of parallel build, make the NanoGUI targets dependencies
+set_property(TARGET glfw glfw_objects nanogui PROPERTY FOLDER "dependencies")
+
 
 # High warning level, treat warnings as errors, compile as a console with
 # main().

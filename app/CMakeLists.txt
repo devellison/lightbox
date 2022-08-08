@@ -19,16 +19,53 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # Add lightbox app (move these to separate library)
-set(SRC src/lightbox.cpp src/main.cpp)
+set(SRC src/lightbox.cpp src/lightbox_app.cpp)
 set(INC inc/lightbox.hpp)
 add_executable(${PROJECT_NAME} ${SRC} ${INC})
-target_include_directories(
-  ${PROJECT_NAME} PUBLIC inc zebralcam::zebralcam ${OpenCV_INCLUDE_DIRS}
+target_include_directories(${PROJECT_NAME} PUBLIC 
+  inc 
+  ${NanoGUI_SOURCE_DIR}/include 
+  ${NANOGUI_EXTRA_INCS} 
+  ${OpenCV_INCLUDE_DIRS}   
+  zebralcam::zebralcam 
+  zebralserial::zebralserial
+  zebralcommon::zebralcommon
+  zebralnetwork::zebralnetwork
 )
 target_compile_definitions(
-  ${PROJECT_NAME} PUBLIC LIGHTBOX_VERSION="${PROJECT_VERSION}"
+  ${PROJECT_NAME} PUBLIC LIGHTBOX_VERSION="${PROJECT_VERSION}" ${NANOGUI_EXTRA_DEFS}
 )
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
-target_link_libraries(${PROJECT_NAME} zebralcam::zebralcam ${OpenCV_LIBS})
+target_link_libraries( ${PROJECT_NAME} 
+  nanogui 
+  ${NANOGUI_EXTRA_LIBS} 
+  ${OpenCV_LIBS}
+  zebralcam::zebralcam 
+  zebralserial::zebralserial
+  zebralcommon::zebralcommon
+  zebralnetwork::zebralnetwork
+)
 
-install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
+# Add lightbox camera test
+add_executable(lbcamtest src/lbcamtest.cpp)
+target_include_directories(lbcamtest PUBLIC 
+  inc  
+  ${OpenCV_INCLUDE_DIRS}
+  zebralcam::zebralcam 
+  zebralserial::zebralserial
+  zebralcommon::zebralcommon
+  zebralnetwork::zebralnetwork
+)
+
+target_compile_definitions(lbcamtest PUBLIC LIGHTBOX_VERSION="${PROJECT_VERSION}")
+target_compile_features(lbcamtest PUBLIC cxx_std_20)
+target_link_libraries(lbcamtest  
+  ${OpenCV_LIBS}
+  zebralcam::zebralcam 
+  zebralserial::zebralserial
+  zebralcommon::zebralcommon
+  zebralnetwork::zebralnetwork
+)
+
+
+install(TARGETS ${PROJECT_NAME} lbcamtest DESTINATION ${CMAKE_INSTALL_BINDIR})

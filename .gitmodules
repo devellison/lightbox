@@ -4,3 +4,6 @@
 [submodule "firmware/Zebral_ESP32Cam"]
 	path = firmware/Zebral_ESP32Cam
 	url = https://github.com/devellison/Zebral_ESP32Cam.git
+[submodule "ext/nanogui"]
+	path = ext/nanogui
+	url = https://github.com/wjakob/nanogui.git

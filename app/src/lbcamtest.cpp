@@ -1,14 +1,14 @@
-/// \file main.cpp
-/// Main file for lightbox_app. Right now, just a test app
+/// \file lbcamtest.cpp
+/// Lightbox Camera test app
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+
 #include "camera.hpp"
 #include "camera2cv.hpp"
 #include "camera_http.hpp"
 #include "camera_manager.hpp"
 #include "errors.hpp"
-#include "lightbox.hpp"
 #include "log.hpp"
 #include "param.hpp"
 #include "platform.hpp"
@@ -17,8 +17,8 @@ using namespace zebral;
 
 void printHelp()
 {
-  std::cout << "lightbox v" << LIGHTBOX_VERSION << " by Michael Ellison " << std::endl;
-  std::cout << "Usage: lightbox CAMERA_INDEX FORMAT [USER] [PASSWORD]" << std::endl;
+  std::cout << "lbcamtest v" << LIGHTBOX_VERSION << " by Michael Ellison " << std::endl;
+  std::cout << "Usage: lbcamtest CAMERA_INDEX FORMAT [USER] [PASSWORD]" << std::endl;
 }
 
 void saveImage(ZBA_TSTAMP time, const cv::Mat& img, const std::filesystem::path& path,
